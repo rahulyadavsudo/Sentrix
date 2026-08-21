@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-fraud-detector
+  namespace: production
+  labels:
+    app: ai-fraud-detector
+    language: python
+    tier: ml-scoring
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: ai-fraud-detector
+  template:
+    metadata:
+      labels:
+        app: ai-fraud-detector
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        linkerd.io/inject: "enabled"
+    spec:
+      containers:
+      - name: ml-inference
+        image: ghcr.io/cloudops/ai-fraud-detector:v2.4.1
+        ports:
+        - containerPort: 8080
+          name: http
+        resources:
+          requests:
+            cpu: "500m"
+            memory: "512Mi"
+          limits:
+            cpu: "2000m"
+            memory: "1024Mi"
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 15
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ai-fraud-detector
+  namespace: production
+spec:
+  selector:
+    app: ai-fraud-detector
+  ports:
+  - port: 8080
+    targetPort: 8080
+    name: http

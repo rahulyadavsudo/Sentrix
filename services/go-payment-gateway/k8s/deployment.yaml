@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payment-gateway
+  namespace: production
+  labels:
+    app: payment-gateway
+    language: golang
+    tier: core-banking
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: payment-gateway
+  template:
+    metadata:
+      labels:
+        app: payment-gateway
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        linkerd.io/inject: "enabled"
+    spec:
+      containers:
+      - name: payment-gateway
+        image: ghcr.io/cloudops/payment-gateway:v2.4.1
+        ports:
+        - containerPort: 8080
+          name: http
+        resources:
+          requests:
+            cpu: "250m"
+            memory: "256Mi"
+          limits:
+            cpu: "1000m"
+            memory: "512Mi"
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+          initialDelaySeconds: 3
+          periodSeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: payment-gateway
+  namespace: production
+spec:
+  selector:
+    app: payment-gateway
+  ports:
+  - port: 8080
+    targetPort: 8080
+    name: http

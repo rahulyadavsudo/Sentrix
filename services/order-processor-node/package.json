@@ -1,0 +1,19 @@
+{
+  "name": "order-processor-node",
+  "version": "2.4.1",
+  "description": "Async Kafka/RabbitMQ order queue processor",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "prom-client": "^15.1.1"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.11.24",
+    "typescript": "^5.3.3"
+  }
+}

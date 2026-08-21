@@ -1,0 +1,6 @@
+{
+  "name": "Sentrix",
+  "description": "Enterprise Autonomous SRE & Kubernetes control plane with real-time telemetry, OpenTelemetry APM distributed tracing & flamegraphs, Helm release rollback, KEDA autoscaler, zero-trust Vault secrets manager, eBPF kernel tracing, and multi-cloud fleet federation.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
