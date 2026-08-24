@@ -1,10 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import {
+  Activity,
   AlertOctagon,
   AlertTriangle,
+  Boxes,
   CheckCircle2,
+  DollarSign,
+  Flame,
   GitBranch,
+  Globe,
+  Lock,
   RefreshCw,
+  Sparkles,
   Zap,
 } from 'lucide-react';
 import { AlertIntegrationsHub } from './components/AlertIntegrationsHub';
@@ -27,11 +34,13 @@ import { KedaAutoscalingPanel } from './components/KedaAutoscalingPanel';
 import { LogViewer } from './components/LogViewer';
 import { MicroserviceProfiler } from './components/MicroserviceProfiler';
 import { MicroserviceSpecsDrawer } from './components/MicroserviceSpecsDrawer';
+import { ModelSwitchHub } from './components/ModelSwitchHub';
 import { MultiClusterFleetManager } from './components/MultiClusterFleetManager';
 import { NavigationTabs, TabType } from './components/NavigationTabs';
 import { PipelineMonitor } from './components/PipelineMonitor';
 import { PostMortemViewer } from './components/PostMortemViewer';
 import { PredictiveLeakRadar } from './components/PredictiveLeakRadar';
+import { ProductionReadinessHub } from './components/ProductionReadinessHub';
 import { RegisterClusterModal } from './components/RegisterClusterModal';
 import { RunbookAutomationStudio } from './components/RunbookAutomationStudio';
 import { SecurityComplianceAudit } from './components/SecurityComplianceAudit';
@@ -151,6 +160,7 @@ export default function App() {
   const [scaledObjects, setScaledObjects] = useState<KedaScaledObject[]>([]);
   const [vaultSecrets, setVaultSecrets] = useState<VaultSecretItem[]>([]);
   const [isRegisterClusterOpen, setIsRegisterClusterOpen] = useState(false);
+  const [activeAiModel, setActiveAiModel] = useState<string>('gemini-3.7-flash');
 
   // Fetch all cluster & pipeline data
   const fetchData = async () => {
@@ -182,6 +192,7 @@ export default function App() {
         crdsRes,
         scaledRes,
         vaultRes,
+        aiModelsRes,
       ] = await Promise.all([
         fetch('/api/cluster/overview'),
         fetch('/api/github/activity'),
@@ -209,6 +220,7 @@ export default function App() {
         fetch('/api/k8s/crds'),
         fetch('/api/autoscaling/scaled-objects'),
         fetch('/api/secrets/vault-items'),
+        fetch('/api/ai/models'),
       ]);
 
       if (overviewRes.ok) setClusterOverview(await overviewRes.json());
@@ -315,6 +327,13 @@ export default function App() {
         const vData = await vaultRes.json();
         setVaultSecrets(vData.secrets || []);
       }
+      if (aiModelsRes && aiModelsRes.ok) {
+        const aiData = await aiModelsRes.json();
+        if (aiData.activeModel) {
+          setActiveAiModel(aiData.activeModel);
+        }
+      }
+
     } catch (err) {
       console.error('Error fetching cluster telemetry:', err);
     } finally {
@@ -818,64 +837,123 @@ export default function App() {
   ).length;
 
   return (
-    <div className={`min-h-screen ${theme === 'dark' ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'} font-sans selection:bg-cyan-500 selection:text-slate-950 pb-20 relative overflow-x-hidden transition-colors duration-300`}>
-      {/* Ambient Glassmorphism Luminous Glow Orbs in Background */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
-        {theme === 'dark' ? (
-          <>
-            <div className="absolute -top-40 -left-40 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl" />
-            <div className="absolute top-1/4 -right-40 w-[30rem] h-[30rem] bg-indigo-600/10 rounded-full blur-[128px]" />
-            <div className="absolute top-2/3 left-1/3 w-[36rem] h-[36rem] bg-purple-600/8 rounded-full blur-[140px]" />
-            <div className="absolute -bottom-40 right-1/4 w-96 h-96 bg-emerald-500/8 rounded-full blur-3xl" />
-          </>
-        ) : (
-          <>
-            <div className="absolute -top-40 -left-40 w-96 h-96 bg-cyan-400/20 rounded-full blur-3xl" />
-            <div className="absolute top-1/4 -right-40 w-[30rem] h-[30rem] bg-blue-400/15 rounded-full blur-[128px]" />
-            <div className="absolute top-2/3 left-1/3 w-[36rem] h-[36rem] bg-purple-400/15 rounded-full blur-[140px]" />
-            <div className="absolute -bottom-40 right-1/4 w-96 h-96 bg-emerald-400/15 rounded-full blur-3xl" />
-          </>
-        )}
-        <div className="absolute inset-0 bg-grid-pattern opacity-40" />
-      </div>
+    <div className={`min-h-screen ${theme === 'light' ? 'light bg-[#f8fafc] text-[#0f172a]' : 'dark bg-[#000000] text-[#f3f4f6]'} font-sans selection:bg-white selection:text-black pb-12 relative flex transition-colors duration-300`}>
+      {/* Slim Vertical Icon Rail / Dock (Matching Left Dock in Reference Screenshot) */}
+      <aside className={`hidden lg:flex flex-col items-center justify-between w-16 py-5 ${theme === 'light' ? 'bg-white border-slate-200 text-slate-700' : 'bg-[#000000] border-white/10 text-white'} border-r shrink-0 sticky top-0 h-screen z-50 transition-colors`}>
+        {/* Top Brand Rainbow Ring Logo */}
+        <div className="flex flex-col items-center gap-6">
+          <button
+            onClick={() => setActiveTab('overview')}
+            className="group relative flex items-center justify-center w-8 h-8 rounded-full p-[2px] bg-gradient-to-tr from-amber-400 via-rose-500 to-cyan-400 hover:scale-105 transition-all shadow-md"
+            title="Sentrix Overview"
+          >
+            <div className={`w-full h-full ${theme === 'light' ? 'bg-white' : 'bg-[#000000]'} rounded-full flex items-center justify-center`}>
+              <span className={`w-2 h-2 rounded-full ${theme === 'light' ? 'bg-slate-900' : 'bg-white'} group-hover:bg-cyan-400 transition-colors`} />
+            </div>
+          </button>
 
-      {/* Global Header */}
-      <div className="relative z-40">
-        <Header
-          stats={clusterOverview?.stats || null}
-          repo={repo}
-          autonomousHealing={true}
-          onToggleAutonomousHealing={() => showToast('info', 'Autonomous Self-Healing', 'Continuous auto-remediation is permanently armed.')}
-          onSimulateIncident={handleSimulateIncident}
-          onTriggerPipeline={() => handleTriggerRun('main', 'payment-gateway')}
-          onRefresh={fetchData}
-          isLoading={loading}
-          theme={theme}
-          onToggleTheme={toggleTheme}
-          onOpenRegisterCluster={() => setIsRegisterClusterOpen(true)}
-          primaryClusterName={clusterFleet.find((c) => c.isPrimary)?.clusterName || 'gke-prod-us-west1'}
-        />
-      </div>
+          {/* Core Navigation Icons (Clean monochrome outline icons) */}
+          <div className="flex flex-col items-center gap-2.5">
+            {[
+              { id: 'incidents' as TabType, icon: Flame, title: 'Incident Hub' },
+              { id: 'pipeline' as TabType, icon: GitBranch, title: 'CI/CD Pipelines' },
+              { id: 'topology' as TabType, icon: Boxes, title: 'Cluster Topology' },
+              { id: 'traces' as TabType, icon: Activity, title: 'OTel Distributed Traces' },
+              { id: 'finops' as TabType, icon: DollarSign, title: 'FinOps Cloud Spend' },
+              { id: 'fleet' as TabType, icon: Globe, title: 'Multi-Cluster Fleet' },
+              { id: 'vault' as TabType, icon: Lock, title: 'Vault KMS Secrets' },
+              { id: 'copilot' as TabType, icon: Sparkles, title: 'AI SRE Copilot' },
+            ].map((item) => {
+              const Icon = item.icon;
+              const isActive = activeTab === item.id;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => setActiveTab(item.id)}
+                  className={`p-2.5 rounded-2xl transition-all duration-200 relative group ${
+                    isActive
+                      ? theme === 'light'
+                        ? 'bg-slate-900 text-white shadow-md'
+                        : 'bg-white text-black shadow-lg shadow-white/10'
+                      : theme === 'light'
+                        ? 'text-slate-500 hover:text-slate-900 hover:bg-slate-100'
+                        : 'text-slate-500 hover:text-white hover:bg-[#18181b]'
+                  }`}
+                  title={item.title}
+                >
+                  <Icon className="w-4 h-4" />
+                </button>
+              );
+            })}
+          </div>
+        </div>
 
-      {/* Responsive Navigation Tab Bar */}
-      <div className="relative z-30">
-        <NavigationTabs
-          activeTab={activeTab}
-          onChangeTab={setActiveTab}
-          issueCount={activeIssueCount}
-          predictiveAlertCount={activePredictiveAlertCount}
-          activeWorkflowsCount={activeWorkflowsCount}
-        />
-      </div>
+        {/* Bottom User Avatar */}
+        <div className="flex flex-col items-center gap-3">
+          <div
+            onClick={() => setIsRegisterClusterOpen(true)}
+            className="w-8 h-8 rounded-full ring-1 ring-white/20 overflow-hidden cursor-pointer hover:ring-white/50 transition-all"
+            title="Cluster Settings"
+          >
+            <img
+              src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80"
+              alt="Avatar"
+              className="w-full h-full object-cover"
+              referrerPolicy="no-referrer"
+            />
+          </div>
+        </div>
+      </aside>
 
-      {/* Main Tab Content Canvas */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6 relative z-10">
-        {activeTab === 'incidents' && (
-          <IncidentHub
-            onShowToast={showToast}
-            onNavigateTab={(tab) => setActiveTab(tab as TabType)}
+      {/* Main Layout Area */}
+      <div className={`flex-1 flex flex-col min-w-0 ${theme === 'light' ? 'bg-[#f8fafc]' : 'bg-[#000000]'} transition-colors`}>
+        {/* Global Header */}
+        <div className="relative z-40">
+          <Header
+            stats={clusterOverview?.stats || null}
+            repo={repo}
+            autonomousHealing={true}
+            onToggleAutonomousHealing={() => showToast('info', 'Autonomous Self-Healing', 'Continuous auto-remediation is permanently armed.')}
+            onSimulateIncident={handleSimulateIncident}
+            onTriggerPipeline={() => handleTriggerRun('main', 'payment-gateway')}
+            onRefresh={fetchData}
+            isLoading={loading}
+            theme={theme}
+            onToggleTheme={toggleTheme}
+            onOpenRegisterCluster={() => setIsRegisterClusterOpen(true)}
+            primaryClusterName={clusterFleet.find((c) => c.isPrimary)?.clusterName || 'gke-prod-us-west1'}
+            activeAiModelName={
+              activeAiModel.includes('nvidia')
+                ? 'NVIDIA NIM'
+                : activeAiModel.includes('cursor')
+                ? 'Cursor Bridge'
+                : activeAiModel.includes('pro')
+                ? 'Gemini 3.7 Pro'
+                : 'Gemini 3.7 Flash'
+            }
+            onOpenModelSwitchTab={() => setActiveTab('model-switch')}
           />
-        )}
+        </div>
+
+        {/* Responsive Navigation Tab Bar */}
+        <div className="relative z-30">
+          <NavigationTabs
+            activeTab={activeTab}
+            onChangeTab={setActiveTab}
+            issueCount={activeIssueCount}
+            predictiveAlertCount={activePredictiveAlertCount}
+            activeWorkflowsCount={activeWorkflowsCount}
+          />
+        </div>
+
+        {/* Main Tab Content Canvas */}
+        <main className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 mt-6 relative z-10">
+          {activeTab === 'incidents' && (
+            <IncidentHub
+              onShowToast={showToast}
+              onNavigateTab={(tab) => setActiveTab(tab as TabType)}
+            />
+          )}
 
         {activeTab === 'pipeline' && (
           <PipelineMonitor
@@ -927,6 +1005,11 @@ export default function App() {
                 handleAutoHeal(matchingIssue.id, matchingIssue.healActionType);
               }
             }}
+            onSelectPodForDiagnostics={(podName) => {
+              showToast('info', 'Workload Selected', `Opening RCA diagnostics for pod ${podName}`);
+              setActiveTab('rca');
+            }}
+            onShowToast={showToast}
           />
         )}
 
@@ -1082,6 +1165,13 @@ export default function App() {
           />
         )}
 
+        {activeTab === 'model-switch' && (
+          <ModelSwitchHub
+            onNavigateToCopilot={() => setActiveTab('copilot')}
+            onShowToast={showToast}
+          />
+        )}
+
         {activeTab === 'copilot' && (
           <SreCopilotChat onExecuteAction={handleCopilotAction} />
         )}
@@ -1102,6 +1192,8 @@ export default function App() {
         {activeTab === 'postmortem' && <PostMortemViewer />}
 
         {activeTab === 'specs' && <MicroserviceSpecsDrawer />}
+
+        {activeTab === 'production-readiness' && <ProductionReadinessHub />}
       </main>
 
       {/* Register Cluster Modal */}
@@ -1146,6 +1238,7 @@ export default function App() {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }

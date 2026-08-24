@@ -1,0 +1,63 @@
+version: '3.8'
+
+services:
+  # 1. Main SRE Dashboard & Autonomous Control Plane (React + Express)
+  control-plane:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sentrix-control-plane
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+    depends_on:
+      - rust-auth-guard
+      - go-payment-gateway
+      - py-ai-fraud-detector
+    restart: unless-stopped
+    networks:
+      - sentrix-network
+
+  # 2. Rust Edge Auth & High-Speed JWT Service (Actix + Tokio)
+  rust-auth-guard:
+    build:
+      context: ./services/rust-auth-guard
+      dockerfile: Dockerfile
+    container_name: sentrix-rust-auth-guard
+    ports:
+      - "8081:8081"
+    restart: unless-stopped
+    networks:
+      - sentrix-network
+
+  # 3. Go Financial & Payment Processing Engine (Gin + client-go)
+  go-payment-gateway:
+    build:
+      context: ./services/go-payment-gateway
+      dockerfile: Dockerfile
+    container_name: sentrix-go-payment-gateway
+    ports:
+      - "8080:8080"
+    depends_on:
+      - py-ai-fraud-detector
+    restart: unless-stopped
+    networks:
+      - sentrix-network
+
+  # 4. Python ML Fraud & SRE Telemetry Detector (FastAPI + NumPy)
+  py-ai-fraud-detector:
+    build:
+      context: ./services/py-ai-fraud-detector
+      dockerfile: Dockerfile
+    container_name: sentrix-py-ai-fraud-detector
+    ports:
+      - "8082:8082"
+    restart: unless-stopped
+    networks:
+      - sentrix-network
+
+networks:
+  sentrix-network:
+    driver: bridge

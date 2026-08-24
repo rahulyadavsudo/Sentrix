@@ -7,6 +7,8 @@ import {
   Bot,
   Boxes,
   Bug,
+  Compass,
+  CreditCard,
   DollarSign,
   FileCode2,
   FileText,
@@ -14,6 +16,7 @@ import {
   Gauge,
   GitBranch,
   Globe,
+  LayoutDashboard,
   Lock,
   Network,
   Package,
@@ -26,6 +29,9 @@ import {
   Terminal,
   TrendingUp,
   Zap,
+  Server,
+  Database,
+  Cpu,
 } from 'lucide-react';
 
 export type TabType =
@@ -54,11 +60,13 @@ export type TabType =
   | 'gitops'
   | 'canary'
   | 'chaos'
+  | 'model-switch'
   | 'copilot'
   | 'finops'
   | 'logs'
   | 'postmortem'
-  | 'specs';
+  | 'specs'
+  | 'production-readiness';
 
 interface NavigationTabsProps {
   activeTab: TabType;
@@ -94,14 +102,14 @@ export const NavigationTabs: React.FC<NavigationTabsProps> = ({
     },
     {
       id: 'tech-stack' as TabType,
-      label: 'Repo Tech Stack & Structure',
+      label: 'Repo Tech Stack',
       icon: FileCode2,
       badge: 'Auto-Discovery',
       badgeColor: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
     },
     {
       id: 'failure-history' as TabType,
-      label: 'Failure History & AI RCA',
+      label: 'Failure History & RCA',
       icon: ShieldAlert,
       badge: 'RCA & Diff',
       badgeColor: 'bg-rose-500/20 text-rose-300 border-rose-500/30',
@@ -115,7 +123,7 @@ export const NavigationTabs: React.FC<NavigationTabsProps> = ({
     },
     {
       id: 'traces' as TabType,
-      label: 'OTel Traces & Flamegraph',
+      label: 'OTel Traces & APM',
       icon: Activity,
       badge: 'APM Live',
       badgeColor: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30',
@@ -254,10 +262,17 @@ export const NavigationTabs: React.FC<NavigationTabsProps> = ({
       badgeColor: 'bg-rose-500/20 text-rose-300 border-rose-500/30',
     },
     {
+      id: 'model-switch' as TabType,
+      label: 'AI Model Switcher',
+      icon: Cpu,
+      badge: 'NVIDIA/Cursor',
+      badgeColor: 'bg-purple-500/20 text-purple-300 border-purple-500/30 animate-pulse',
+    },
+    {
       id: 'copilot' as TabType,
       label: 'AI SRE Copilot',
       icon: Sparkles,
-      badge: 'Gemini',
+      badge: 'Multi-LLM',
       badgeColor: 'bg-purple-500/20 text-purple-300 border-purple-500/30',
     },
     {
@@ -288,10 +303,17 @@ export const NavigationTabs: React.FC<NavigationTabsProps> = ({
       badge: null,
       badgeColor: '',
     },
+    {
+      id: 'production-readiness' as TabType,
+      label: 'Production & SaaS Hub',
+      icon: Server,
+      badge: 'RBAC & DB',
+      badgeColor: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30 font-bold',
+    },
   ];
 
   return (
-    <div className="bg-slate-950/60 border-b border-white/10 backdrop-blur-xl sticky top-[138px] md:top-[93px] z-30 shadow-lg shadow-black/20 transition-colors duration-300">
+    <div className="bg-[#000000] border-b border-white/10 sticky top-[73px] z-30 transition-colors duration-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <nav className="flex space-x-1.5 overflow-x-auto py-2.5 scrollbar-none" aria-label="Tabs">
           {tabs.map((tab) => {
@@ -301,17 +323,19 @@ export const NavigationTabs: React.FC<NavigationTabsProps> = ({
               <button
                 key={tab.id}
                 onClick={() => onChangeTab(tab.id)}
-                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all duration-200 border relative ${
+                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all duration-200 border relative ${
                   isActive
-                    ? 'bg-cyan-500/15 text-cyan-200 border-cyan-400/50 shadow-lg shadow-cyan-500/20 backdrop-blur-md'
-                    : 'text-slate-400 hover:text-slate-100 hover:bg-white/5 border-transparent'
+                    ? 'bg-white text-black border-white shadow-lg shadow-white/10'
+                    : 'text-slate-400 hover:text-white hover:bg-[#18181b] border-transparent'
                 }`}
               >
-                <Icon className={`w-4 h-4 transition-colors ${isActive ? 'text-cyan-400 drop-shadow-[0_0_8px_rgba(6,182,212,0.6)]' : 'text-slate-400'}`} />
+                <Icon className={`w-3.5 h-3.5 transition-colors ${isActive ? 'text-black' : 'text-slate-400'}`} />
                 <span>{tab.label}</span>
                 {tab.badge && (
                   <span
-                    className={`px-1.5 py-0.5 text-[10px] font-bold rounded-md border backdrop-blur-md ${tab.badgeColor}`}
+                    className={`px-1.5 py-0.2 rounded-full text-[9px] font-extrabold ${
+                      isActive ? 'bg-black/10 text-black' : tab.badgeColor
+                    }`}
                   >
                     {tab.badge}
                   </span>

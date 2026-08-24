@@ -1012,5 +1012,214 @@ export interface TechStackDetection {
   };
 }
 
+// -------------------------------------------------------------
+// Production & Enterprise SaaS Types (RBAC, Multi-Tenancy, Persistence)
+// -------------------------------------------------------------
 
+export type UserRole = 'admin' | 'sre_lead' | 'developer' | 'security_auditor' | 'viewer';
 
+export interface EnterpriseUser {
+  id: string;
+  email: string;
+  name: string;
+  role: UserRole;
+  tenantId: string;
+  avatarUrl?: string;
+  twoFactorEnabled: boolean;
+  lastLoginAt: string;
+  permissions: {
+    canTriggerAutoHeal: boolean;
+    canExecuteChaos: boolean;
+    canShiftCanaryTraffic: boolean;
+    canModifyPolicies: boolean;
+    canDrainNodes: boolean;
+    canViewAuditLogs: boolean;
+    canManageSecrets: boolean;
+  };
+}
+
+export interface EnterpriseAuditLog {
+  id: string;
+  timestamp: string;
+  userEmail: string;
+  userRole: UserRole;
+  action: string;
+  category: 'CLUSTER_MUTATION' | 'AUTH_EVENT' | 'CHAOS_INJECTION' | 'CANARY_SHIFT' | 'POLICY_UPDATE' | 'SECRET_ACCESS';
+  targetResource: string;
+  status: 'SUCCESS' | 'DENIED' | 'FAILED';
+  clientIp: string;
+  details: string;
+  diffSummary?: string;
+}
+
+export interface DatabaseConnectionStatus {
+  engine: 'PostgreSQL' | 'Firestore' | 'Redis' | 'In-Memory (Local Demo)';
+  connected: boolean;
+  latencyMs: number;
+  poolActiveConnections: number;
+  poolIdleConnections: number;
+  databaseName: string;
+  sslMode: 'require' | 'verify-full' | 'disabled';
+  tableCounts: {
+    incidents: number;
+    auditLogs: number;
+    metricsSnapshots: number;
+    users: number;
+  };
+  lastHealthCheck: string;
+}
+
+export interface ProductionSystemHealth {
+  version: string;
+  uptimeSeconds: number;
+  environment: 'production' | 'staging' | 'development';
+  probes: {
+    liveness: boolean;
+    readiness: boolean;
+    database: boolean;
+    k8sApi: boolean;
+  };
+  rateLimiter: {
+    enabled: boolean;
+    maxRequestsPerMin: number;
+    activeClientsTracked: number;
+  };
+  activeTenant: {
+    id: string;
+    name: string;
+    tier: 'Enterprise Platinum' | 'Pro' | 'Standard';
+    maxMonitoredNodes: number;
+    currentNodes: number;
+  };
+}
+
+export type AiProviderCategory = 'google' | 'nvidia' | 'cursor' | 'anthropic' | 'openai' | 'custom';
+
+export interface AiModelOption {
+  id: string;
+  name: string;
+  provider: string;
+  category: AiProviderCategory;
+  tier: string;
+  speed: string;
+  contextWindow: string;
+  isDefault?: boolean;
+  requiresKey?: 'NVIDIA_API_KEY' | 'CURSOR_API_KEY' | 'GEMINI_API_KEY' | 'NONE';
+  description: string;
+  endpoint?: string;
+}
+
+export interface AiModelConfigState {
+  activeModel: string;
+  models: AiModelOption[];
+  nvidiaApiKeyConfigured: boolean;
+  cursorApiKeyConfigured: boolean;
+  geminiApiKeyConfigured: boolean;
+}
+
+export interface NodeCondition {
+  type: 'Ready' | 'MemoryPressure' | 'DiskPressure' | 'PIDPressure' | 'NetworkUnavailable';
+  status: 'True' | 'False' | 'Unknown';
+  lastHeartbeatTime: string;
+  lastTransitionTime: string;
+  reason: string;
+  message: string;
+}
+
+export interface NodeKernelLogEntry {
+  id: string;
+  timestamp: string;
+  relativeTime: string;
+  level: 'INFO' | 'WARN' | 'ERR' | 'CRIT' | 'EBPF' | 'OOM';
+  subsystem: 'cgroup2' | 'ebpf' | 'dmesg' | 'kubelet' | 'net_sched' | 'nvme_io' | 'tcp';
+  message: string;
+  cgroupPath?: string;
+  pid?: number;
+  comm?: string;
+  cpuCore?: number;
+  highlight?: boolean;
+}
+
+export interface ScheduledPodDetail {
+  id: string;
+  name: string;
+  namespace: string;
+  status: string;
+  qosClass: 'Guaranteed' | 'Burstable' | 'BestEffort';
+  cpuRequestMillicores: number;
+  cpuLimitMillicores: number;
+  cpuUsagePercent: number;
+  memoryRequestMB: number;
+  memoryLimitMB: number;
+  memoryUsagePercent: number;
+  restartCount: number;
+  age: string;
+  ip: string;
+  affinityMatch: string;
+  tolerations: string[];
+}
+
+export interface NodeDetailedInfo {
+  id: string;
+  name: string;
+  role: 'control-plane' | 'worker';
+  status: 'Ready' | 'NotReady' | 'SchedulingDisabled';
+  instanceType: string;
+  providerId: string;
+  architecture: string;
+  osImage: string;
+  kernelVersion: string;
+  containerRuntime: string;
+  kubeletVersion: string;
+  kubeProxyVersion: string;
+  internalIP: string;
+  externalIP?: string;
+  region: string;
+  zone: string;
+  bootTime: string;
+  uptime: string;
+  labels: Record<string, string>;
+  annotations: Record<string, string>;
+  taints: { key: string; value?: string; effect: string }[];
+  conditions: NodeCondition[];
+  capacity: {
+    cpuMillicores: number;
+    memoryBytes: number;
+    ephemeralStorageBytes: number;
+    pods: number;
+  };
+  allocatable: {
+    cpuMillicores: number;
+    memoryBytes: number;
+    ephemeralStorageBytes: number;
+    pods: number;
+  };
+  allocated: {
+    cpuRequestMillicores: number;
+    cpuRequestPercent: number;
+    cpuLimitMillicores: number;
+    cpuLimitPercent: number;
+    memoryRequestBytes: number;
+    memoryRequestPercent: number;
+    memoryLimitBytes: number;
+    memoryLimitPercent: number;
+    podsRunning: number;
+    podsCapacity: number;
+    ephemeralStorageUsedBytes: number;
+    ephemeralStoragePercent: number;
+  };
+  cgroupPsi: {
+    cpuSome10s: number;
+    memSome10s: number;
+    memFull10s: number;
+    ioSome10s: number;
+  };
+  networkStats: {
+    rxBytesPerSec: number;
+    txBytesPerSec: number;
+    tcpRetransmitsPerSec: number;
+    socketDropsTotal: number;
+  };
+  scheduledPods: ScheduledPodDetail[];
+  kernelLogs: NodeKernelLogEntry[];
+}
