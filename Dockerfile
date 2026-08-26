@@ -1,26 +1,37 @@
-# ---- Stage 1: Build Frontend and Bundle Server ----
+# Multi-stage Dockerfile for Sentrix SRE Control Plane
 FROM node:20-alpine AS builder
+
 WORKDIR /app
+
+# Copy dependency specifications
+COPY package*.json ./
 
 # Install dependencies
-COPY package.json ./
-RUN npm install
+RUN npm ci
 
-# Copy source code and build production bundle
+# Copy application source
 COPY . .
+
+# Build Vite frontend and bundle Express backend to dist/server.cjs
 RUN npm run build
 
-# ---- Stage 2: Production Runner ----
+# --- Production Runtime Image ---
 FROM node:20-alpine AS runner
+
 WORKDIR /app
+
 ENV NODE_ENV=production
 ENV PORT=3000
 
-# Copy compiled artifacts from builder stage
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/package.json ./package.json
-COPY --from=builder /app/node_modules ./node_modules
+# Copy package files and install production dependencies only
+COPY package*.json ./
+RUN npm ci --only=production
 
+# Copy built frontend assets and compiled backend bundle
+COPY --from=builder /app/dist ./dist
+
+# Expose container port
 EXPOSE 3000
 
+# Start production server
 CMD ["node", "dist/server.cjs"]

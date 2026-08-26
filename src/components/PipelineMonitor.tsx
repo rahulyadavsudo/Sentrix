@@ -43,6 +43,7 @@ interface PipelineMonitorProps {
   commits: CommitActivity[];
   workflowRuns: WorkflowRun[];
   onTriggerRun: (branch: string, service: string, simulateFailure?: boolean) => void;
+  onWorkflowRunCreated?: (run: WorkflowRun) => void;
   onConnectRepo?: (repoUrl: string, token?: string) => Promise<boolean>;
   onSyncRepo?: () => Promise<boolean>;
   onDisconnectRepo?: () => Promise<boolean>;
@@ -55,6 +56,7 @@ export const PipelineMonitor: React.FC<PipelineMonitorProps> = ({
   commits,
   workflowRuns,
   onTriggerRun,
+  onWorkflowRunCreated,
   onConnectRepo,
   onSyncRepo,
   onDisconnectRepo,
@@ -271,6 +273,9 @@ export const PipelineMonitor: React.FC<PipelineMonitorProps> = ({
         setTimeout(() => setRemediationMsg(null), 6000);
         
         if (data.newRun) {
+          if (onWorkflowRunCreated) {
+            onWorkflowRunCreated(data.newRun);
+          }
           setSelectedRunId(data.newRun.id);
         }
         if (onSyncRepo) {
@@ -784,7 +789,7 @@ export const PipelineMonitor: React.FC<PipelineMonitorProps> = ({
                       {aiDiagnosisMap[selectedRun.id]?.exactError ||
                         selectedRun.errorLogs?.[0] ||
                         selectedRun.failureReason ||
-                        'AssertionError: Expected status 200, received 500 (Internal Server Error)'}
+                        `Error in step "${selectedRun.failedStepName || 'Workflow Execution'}": non-zero exit code returned.`}
                     </div>
                   </div>
 
@@ -820,8 +825,8 @@ export const PipelineMonitor: React.FC<PipelineMonitorProps> = ({
                       </div>
                       <div className="p-3.5 rounded-lg bg-slate-950/80 border border-slate-800 space-y-1.5">
                         {(aiDiagnosisMap[selectedRun.id]?.solutionSteps || [
-                          'Verify the database migration or mock response format matches schema expectations.',
-                          'Apply the proposed patch below to reconcile expected balance assertions.',
+                          `Inspect the runner console log trace for step "${selectedRun.failedStepName || 'Build Step'}".`,
+                          'Apply the proposed patch or configuration change below.',
                           'Re-trigger workflow via the 1-Click Auto-Fix button above.',
                         ]).map((step, idx) => (
                           <div key={idx} className="flex items-start gap-2 text-xs text-slate-300">

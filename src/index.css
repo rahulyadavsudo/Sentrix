@@ -9,7 +9,7 @@
 
   body {
     font-family: var(--font-sans);
-    background-color: #000000;
+    background-color: #090b10;
     color: #f3f4f6;
     letter-spacing: -0.01em;
     -webkit-font-smoothing: antialiased;
@@ -30,23 +30,23 @@
 }
 
 @layer utilities {
-  /* Solid Black Matte Card Utilities (Pure & High-End Dark Aesthetic) */
+  /* SentriX Deep Matte Card Utilities */
   .dark-card-primary {
-    background-color: #121214;
-    border: 1px solid rgba(255, 255, 255, 0.07);
-    border-radius: 1.5rem;
-  }
-
-  .dark-card-secondary {
-    background-color: #18181b;
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    background-color: #10131b;
+    border: 1px solid #1b202d;
     border-radius: 1.25rem;
   }
 
-  .dark-card-tertiary {
-    background-color: #202024;
-    border: 1px solid rgba(255, 255, 255, 0.09);
+  .dark-card-secondary {
+    background-color: #141722;
+    border: 1px solid #1e2433;
     border-radius: 1rem;
+  }
+
+  .dark-card-tertiary {
+    background-color: #1a1e2b;
+    border: 1px solid #252c3e;
+    border-radius: 0.75rem;
   }
 
   /* Pastel Accent Cards */

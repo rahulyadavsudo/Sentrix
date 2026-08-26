@@ -41,9 +41,8 @@ export const SreCopilotChat: React.FC<SreCopilotChatProps> = ({ onExecuteAction 
   const [activeModel, setActiveModel] = useState<string>('gemini-3.7-flash');
   const [models, setModels] = useState<AiModelOption[]>([
     { id: 'gemini-3.7-flash', name: 'Gemini 3.7 Flash', provider: 'Google Cloud Vertex/AI Studio', tier: 'Ultra-Fast SRE Reasoning', speed: '45ms', contextWindow: '1M tokens' },
-    { id: 'gemini-3.7-pro', name: 'Gemini 3.7 Pro', provider: 'Google Cloud Vertex/AI Studio', tier: 'Deep Architectural RCA', speed: '120ms', contextWindow: '2M tokens' },
-    { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', provider: 'Google Cloud AI', tier: 'High-Throughput Live Telemetry', speed: '38ms', contextWindow: '1M tokens' },
-    { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', provider: 'Google Cloud AI', tier: 'Complex Multi-Cluster Synthesis', speed: '110ms', contextWindow: '2M tokens' },
+    { id: 'gemini-flash-latest', name: 'Gemini Flash Latest', provider: 'Google Cloud Vertex/AI Studio', tier: 'High-Throughput Live Telemetry', speed: '35ms', contextWindow: '1M tokens' },
+    { id: 'gemini-3.1-flash-lite', name: 'Gemini 3.1 Flash Lite', provider: 'Google Cloud Vertex/AI Studio', tier: 'High-Throughput Microservice Telemetry', speed: '25ms', contextWindow: '1M tokens' },
     { id: 'deepseek-r1', name: 'DeepSeek-R1 (SRE Agent)', provider: 'Self-Hosted vLLM / Ollama', tier: 'Open-Weights Local Reasoning', speed: '85ms', contextWindow: '128K tokens' },
     { id: 'claude-3-7-sonnet', name: 'Claude 3.7 Sonnet', provider: 'Anthropic Bedrock Bridge', tier: 'Hybrid Infrastructure Orchestrator', speed: '95ms', contextWindow: '200K tokens' },
     { id: 'gpt-4o', name: 'OpenAI GPT-4o', provider: 'Azure OpenAI Service', tier: 'General CloudOps Automation', speed: '90ms', contextWindow: '128K tokens' },

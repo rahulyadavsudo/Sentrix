@@ -1,0 +1,91 @@
+syntax = "proto3";
+
+package logcollector.v1;
+
+option go_package = "github.com/sre-sentrix/log-collector/proto/v1;logcollectorv1";
+
+// LogCollectorService provides high-performance streaming log extraction
+// and failure root-cause analysis for GitHub Actions CI/CD workflows.
+service LogCollectorService {
+  // ExtractFailureLog fetches raw GitHub runner logs or parses provided log streams
+  // to extract exact error lines, classify root causes, and redact sensitive credentials.
+  rpc ExtractFailureLog(ExtractLogRequest) returns (ExtractLogResponse);
+
+  // StreamJobLogs opens a server-streaming connection to process and return log lines
+  // in real-time as they are streamed from the GitHub Actions runner.
+  rpc StreamJobLogs(StreamLogRequest) returns (stream LogStreamChunk);
+
+  // GetCollectorStats returns engine telemetry, throughput metrics, and scrubbing statistics.
+  rpc GetCollectorStats(GetStatsRequest) returns (CollectorStatsResponse);
+
+  // RunBenchmark performs an in-memory stress test across thousands of log lines.
+  rpc RunBenchmark(BenchmarkRequest) returns (BenchmarkResponse);
+}
+
+message ExtractLogRequest {
+  string owner = 1;
+  string repo = 2;
+  int64 job_id = 3;
+  string token = 4;
+  string raw_content = 5;
+}
+
+message ExtractLogResponse {
+  int64 job_id = 1;
+  string owner = 2;
+  string repo = 3;
+  string exact_error = 4;
+  string failed_step_name = 5;
+  string failure_category = 6;
+  string root_cause_explanation = 7;
+  repeated string recommended_actions = 8;
+  int32 lines_processed = 9;
+  repeated string critical_lines = 10;
+  int64 duration_ms = 11;
+  int32 sanitized_tokens = 12;
+  bool cache_hit = 13;
+}
+
+message StreamLogRequest {
+  string owner = 1;
+  string repo = 2;
+  int64 job_id = 3;
+  string token = 4;
+}
+
+message LogStreamChunk {
+  int32 line_number = 1;
+  string text = 2;
+  bool is_error = 3;
+  string step_name = 4;
+}
+
+message GetStatsRequest {}
+
+message CollectorStatsResponse {
+  uint64 total_processed_logs = 1;
+  uint64 total_lines_parsed = 2;
+  uint64 sanitized_secrets = 3;
+  uint64 cache_hits = 4;
+  double avg_processing_ms = 5;
+  int64 uptime_seconds = 6;
+  string engine_status = 7;
+  string version = 8;
+  string grpc_port = 9;
+  string rest_port = 10;
+}
+
+message BenchmarkRequest {
+  int32 line_count = 1;
+}
+
+message BenchmarkResponse {
+  string benchmark_name = 1;
+  int32 lines_parsed = 2;
+  double elapsed_ms = 3;
+  int64 throughput_lines_per_sec = 4;
+  int32 scrubbed_secrets = 5;
+  string extracted_error = 6;
+  string memory_per_stream = 7;
+  string status = 8;
+}

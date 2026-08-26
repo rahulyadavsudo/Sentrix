@@ -1093,7 +1093,56 @@ export interface ProductionSystemHealth {
   };
 }
 
-export type AiProviderCategory = 'google' | 'nvidia' | 'cursor' | 'anthropic' | 'openai' | 'custom';
+export type AiProviderCategory = 'google' | 'nvidia' | 'cursor' | 'anthropic' | 'openai' | 'groq' | 'openrouter' | 'deepseek' | 'mistral' | 'custom';
+
+export interface DetectedAiModel {
+  id: string;
+  name: string;
+  displayName?: string;
+  description: string;
+  category: AiProviderCategory;
+  provider: string;
+  contextWindow: string;
+  inputTokenLimit?: number;
+  outputTokenLimit?: number;
+  supportedGenerationMethods?: string[];
+  isRecommended?: boolean;
+  supportsVision?: boolean;
+  supportsThinking?: boolean;
+  tier?: string;
+  speed?: string;
+}
+
+export interface ApiKeyErrorDetails {
+  message: string;
+  code?: string | number;
+  status?: number;
+  details?: string;
+  suggestion?: string;
+  raw?: any;
+}
+
+export interface ApiKeyDetectionResult {
+  success: boolean;
+  provider: AiProviderCategory;
+  providerName: string;
+  models: DetectedAiModel[];
+  keyMasked: string;
+  error?: ApiKeyErrorDetails;
+  detectedAt: string;
+}
+
+export interface ModelVerificationResult {
+  success: boolean;
+  modelId: string;
+  provider: AiProviderCategory;
+  latencyMs: number;
+  status: 'OPERATIONAL' | 'ERROR' | 'DEGRADED';
+  responsePreview?: string;
+  tokensGenerated?: number;
+  error?: ApiKeyErrorDetails;
+  verifiedAt: string;
+}
 
 export interface AiModelOption {
   id: string;
@@ -1115,6 +1164,8 @@ export interface AiModelConfigState {
   nvidiaApiKeyConfigured: boolean;
   cursorApiKeyConfigured: boolean;
   geminiApiKeyConfigured: boolean;
+  customKeyValidated?: boolean;
+  customActiveModel?: string;
 }
 
 export interface NodeCondition {

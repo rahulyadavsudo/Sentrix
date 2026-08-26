@@ -1,18 +1,23 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Activity,
   AlertTriangle,
+  Bell,
+  Bot,
   CheckCircle2,
+  ChevronDown,
   Cpu,
   Github,
-  GitPullRequest,
   HardDrive,
   Moon,
   Play,
   Plus,
+  Radio,
   RefreshCw,
+  Search,
   Server,
   Shield,
+  ShieldCheck,
   Sparkles,
   Sun,
   Zap,
@@ -34,6 +39,8 @@ interface HeaderProps {
   primaryClusterName?: string;
   activeAiModelName?: string;
   onOpenModelSwitchTab?: () => void;
+  onOpenUITemplates?: () => void;
+  onOpenAiAssistant?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -51,250 +58,149 @@ export const Header: React.FC<HeaderProps> = ({
   primaryClusterName = 'gke-prod-us-west1',
   activeAiModelName = 'Gemini 3.7 Flash',
   onOpenModelSwitchTab,
+  onOpenUITemplates,
+  onOpenAiAssistant,
 }) => {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isOrgDropdownOpen, setIsOrgDropdownOpen] = useState(false);
+
   return (
-    <header className={`${theme === 'light' ? 'bg-white border-b border-slate-200 text-slate-900' : 'bg-[#000000] border-b border-white/10 text-white'} sticky top-0 z-40 transition-colors duration-300`}>
-      {/* Top Bar: Cluster Info & Global Actions */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          {/* Logo & Platform Name */}
-          <div className="flex items-center gap-3">
-            {/* Rainbow / Color Ring circular logo matching screenshot */}
-            <div className="w-9 h-9 rounded-full relative flex items-center justify-center p-[2px] bg-gradient-to-tr from-amber-400 via-rose-500 to-cyan-400 shadow-md">
-              <div className={`w-full h-full ${theme === 'light' ? 'bg-white' : 'bg-[#000000]'} rounded-full flex items-center justify-center`}>
-                <Activity className={`w-4 h-4 ${theme === 'light' ? 'text-slate-900' : 'text-white'}`} />
-              </div>
+    <header className="bg-[#090b10] border-b border-[#161a26] text-white sticky top-0 z-40 transition-colors duration-200">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5">
+        <div className="flex items-center justify-between gap-4">
+          {/* Left: Organization / Cluster Selector + Search Bar */}
+          <div className="flex items-center gap-3 flex-1 max-w-2xl">
+            {/* SentriX HQ Selector Pill */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setIsOrgDropdownOpen(!isOrgDropdownOpen)}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#121622] hover:bg-[#181d2c] border border-[#202738] text-xs font-semibold text-white shadow-sm transition-all whitespace-nowrap"
+              >
+                <div className="w-4 h-4 rounded-md bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+                  <ShieldCheck className="w-3 h-3" />
+                </div>
+                <span>SentriX HQ</span>
+                <ChevronDown className="w-3 h-3 text-slate-400" />
+              </button>
+
+              {isOrgDropdownOpen && (
+                <div className="absolute top-full left-0 mt-2 w-56 bg-[#10131c] border border-[#202738] rounded-xl shadow-2xl p-2 z-50 space-y-1">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500 px-2 py-1">
+                    Select Cluster & Org
+                  </div>
+                  <button
+                    onClick={() => {
+                      setIsOrgDropdownOpen(false);
+                      onOpenRegisterCluster?.();
+                    }}
+                    className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs hover:bg-[#181d2c] text-emerald-400 font-semibold flex items-center justify-between"
+                  >
+                    <span>SentriX HQ (Primary)</span>
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                  </button>
+                  <button
+                    onClick={() => {
+                      setIsOrgDropdownOpen(false);
+                      onOpenRegisterCluster?.();
+                    }}
+                    className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs hover:bg-[#181d2c] text-slate-300 flex items-center justify-between"
+                  >
+                    <span>EKS us-east-1</span>
+                    <span className="text-[10px] text-slate-500 font-mono">AWS</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setIsOrgDropdownOpen(false);
+                      onOpenRegisterCluster?.();
+                    }}
+                    className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs hover:bg-[#181d2c] text-slate-300 flex items-center justify-between"
+                  >
+                    <span>AKS westeurope</span>
+                    <span className="text-[10px] text-slate-500 font-mono">Azure</span>
+                  </button>
+                </div>
+              )}
             </div>
 
-            <div>
-              <div className="flex items-center gap-2.5 flex-wrap">
-                <h1 className={`text-xl font-black tracking-tight ${theme === 'light' ? 'text-slate-900' : 'text-white'} flex items-center gap-2 font-display`}>
-                  <span>Sentrix</span>
-                  <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-full ${theme === 'light' ? 'bg-slate-100 border-slate-300 text-slate-700' : 'bg-[#18181b] border-white/10 text-slate-300'} border tracking-wider`}>
-                    v2.4
-                  </span>
-                </h1>
-
-                {/* Modern Interactive Live Cluster Badge */}
-                <button
-                  type="button"
-                  onClick={onOpenRegisterCluster}
-                  className={`group inline-flex items-center gap-2 px-3 py-1 rounded-full ${theme === 'light' ? 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-900' : 'bg-[#141416] hover:bg-[#1f1f23] border-white/10 hover:border-white/20 text-white'} border text-xs font-semibold shadow-sm transition-all duration-200`}
-                  title="Active Kubernetes Cluster - Click to view multi-cluster fleet or register cluster"
-                >
-                  <span className="relative flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400"></span>
-                  </span>
-                  <span className="text-[11px] font-bold tracking-wide text-emerald-600 dark:text-emerald-300">Live Cluster</span>
-                  <span className="text-slate-400 text-[10px]">&bull;</span>
-                  <span className="font-mono text-[10px] text-slate-600 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">
-                    {primaryClusterName}
-                  </span>
-                  <span className="px-1.5 py-0.5 text-[9px] font-bold rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 uppercase">
-                    Primary
-                  </span>
-                </button>
-              </div>
-              <p className={`text-xs ${theme === 'light' ? 'text-slate-600' : 'text-slate-400'} font-sans`}>
-                Enterprise Kubernetes & Cloud SRE Observability Platform &bull; eBPF Telemetry &bull; Predictive OOM &bull; 1-Click Auto-Healing
-              </p>
+            {/* Global Search Bar with Keyboard Shortcut */}
+            <div className="relative flex-1 max-w-md hidden sm:block">
+              <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search assets, threats, CVEs, IPs, incidents..."
+                className="w-full pl-8 pr-12 py-1.5 rounded-xl bg-[#121622] border border-[#202738] focus:border-emerald-500/60 focus:ring-1 focus:ring-emerald-500/40 text-xs text-slate-200 placeholder:text-slate-500 transition-all outline-none"
+              />
+              <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-slate-800/80 text-slate-400 border border-slate-700">
+                ⌘K
+              </span>
             </div>
           </div>
 
-          {/* Connected GitHub Repository Badge & Controls */}
-          <div className="flex flex-wrap items-center gap-2">
-            {repo && (
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#141416] border border-white/10 text-xs text-slate-300 shadow-sm">
-                <Github className="w-3.5 h-3.5 text-slate-300" />
-                <span className="font-semibold text-slate-100">{repo.owner}/{repo.name}</span>
-                <span className="text-slate-600">&bull;</span>
-                <span className="text-cyan-400 font-mono font-medium">{repo.branch}</span>
-                <span className="px-1.5 py-0.5 rounded-full bg-[#1f1f23] text-[10px] text-slate-300 flex items-center gap-1 font-mono">
-                  <GitPullRequest className="w-2.5 h-2.5" /> {repo.openPRs} PRs
-                </span>
-              </div>
-            )}
-
-            {/* Autonomous Self-Healing Toggle */}
-            <button
-              onClick={onToggleAutonomousHealing}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all duration-200 ${
-                autonomousHealing
-                  ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30 shadow-sm'
-                  : 'bg-[#141416] text-slate-400 border-white/10 hover:text-slate-200'
-              }`}
-              title="Autonomous remediation policies auto-fix known issues without manual intervention"
-            >
-              <Shield className={`w-3.5 h-3.5 ${autonomousHealing ? 'text-emerald-400' : 'text-slate-500'}`} />
-              <span>Auto-Healing: <span className="font-extrabold">{autonomousHealing ? 'ACTIVE' : 'MANUAL'}</span></span>
-            </button>
-
-            {/* AI Model Switch Fast Access Pill */}
-            {onOpenModelSwitchTab && (
-              <button
-                onClick={onOpenModelSwitchTab}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-[#141416] hover:bg-purple-950/30 text-purple-300 border border-purple-500/40 hover:border-purple-400 transition-all shadow-sm group"
-                title="Switch AI reasoning model (NVIDIA NIM, Cursor Bridge, Google Gemini)"
-              >
-                <Sparkles className="w-3.5 h-3.5 text-purple-400 group-hover:rotate-12 transition-transform" />
-                <span className="text-[11px] font-bold text-white max-w-[130px] truncate">{activeAiModelName}</span>
-                <span className="text-[9px] px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-300 border border-purple-500/30 uppercase font-mono">Switch</span>
-              </button>
-            )}
-
-            {/* Register Cluster Modal Button */}
-
-            {onOpenRegisterCluster && (
-              <button
-                onClick={onOpenRegisterCluster}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-[#141416] hover:bg-[#1f1f23] text-slate-200 hover:text-white border border-white/10 transition-all shadow-sm"
-                title="Register a new Kubernetes cluster via Kubeconfig or endpoint"
-              >
-                <Server className="w-3.5 h-3.5 text-cyan-400" />
-                <span>+ Cluster</span>
-              </button>
-            )}
-
-            {/* Simulate Incident Button */}
+          {/* Right Action Icons & Profile Info matching screenshot */}
+          <div className="flex items-center gap-2.5">
+            {/* Live Pulse Activity Icon */}
             <button
               onClick={() => onSimulateIncident('memory_leak')}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-[#141416] text-amber-300 border border-amber-500/30 hover:bg-amber-500/15 transition-all shadow-sm"
-              title="Inject a memory leak trajectory (+18.4MB/min) into payment-gateway to test predictive OOM watchdog"
+              className="p-2 rounded-xl bg-[#121622] hover:bg-[#181d2c] border border-[#202738] text-slate-400 hover:text-emerald-400 transition-colors"
+              title="Test Live Telemetry Pulse"
             >
-              <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
-              <span>Inject Leak Alert</span>
+              <Activity className="w-3.5 h-3.5" />
             </button>
 
-            {/* Dispatch Pipeline Button (Solid White Button from screenshot style) */}
-            <button
-              onClick={onTriggerPipeline}
-              className="flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-extrabold bg-white text-black hover:bg-slate-100 shadow-md transition-all font-display"
-            >
-              <Play className="w-3 h-3 fill-current" />
-              <span>Dispatch CI/CD</span>
-            </button>
-
-            {/* Refresh Button */}
+            {/* Telemetry Refresh Icon */}
             <button
               onClick={onRefresh}
               disabled={isLoading}
-              className="p-2 rounded-full bg-[#141416] border border-white/10 text-slate-400 hover:text-white hover:bg-[#1f1f23] transition-all disabled:opacity-50 shadow-sm"
-              title="Refresh cluster telemetry"
+              className="p-2 rounded-xl bg-[#121622] hover:bg-[#181d2c] border border-[#202738] text-slate-400 hover:text-white transition-colors disabled:opacity-50"
+              title="Refresh telemetry"
             >
-              <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin text-cyan-400' : ''}`} />
+              <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin text-emerald-400' : ''}`} />
             </button>
 
-            {/* Dark / Light Theme Mode Toggle Button */}
-            {onToggleTheme && (
-              <button
-                id="theme-toggle-button"
-                onClick={onToggleTheme}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#141416] border border-white/10 text-xs font-medium text-slate-200 hover:text-white transition-all shadow-sm"
-                title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
-              >
-                {theme === 'dark' ? (
-                  <>
-                    <Sun className="w-3.5 h-3.5 text-amber-400" />
-                    <span className="text-[11px] font-semibold text-slate-300">Light</span>
-                  </>
-                ) : (
-                  <>
-                    <Moon className="w-3.5 h-3.5 text-cyan-400" />
-                    <span className="text-[11px] font-semibold text-slate-300">Dark</span>
-                  </>
-                )}
-              </button>
-            )}
-          </div>
-        </div>
+            {/* Notification Bell with Red Alert Dot */}
+            <button
+              onClick={() => onSimulateIncident('ddos')}
+              className="p-2 rounded-xl bg-[#121622] hover:bg-[#181d2c] border border-[#202738] text-slate-400 hover:text-white transition-colors relative"
+              title="Notifications & Alerts"
+            >
+              <Bell className="w-3.5 h-3.5" />
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-rose-500 border border-[#090b10]" />
+            </button>
 
-        {/* Global Cluster Status Indicators Banner */}
-        {stats && (
-          <div className="mt-3 pt-3 border-t border-white/10 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
-            {/* Health Score */}
-            <div className="flex items-center gap-2.5 px-3 py-2 rounded-2xl bg-[#141416] border border-white/5 hover:border-white/15 transition-all">
-              <div className="p-1.5 rounded-xl bg-emerald-500/15 text-emerald-400">
-                <CheckCircle2 className="w-4 h-4" />
-              </div>
-              <div>
-                <div className="text-[10px] uppercase font-semibold tracking-wider text-slate-400">Cluster Health</div>
-                <div className="text-sm font-bold text-slate-100 flex items-center gap-1 font-display">
-                  <span>{stats.healthScore}%</span>
-                  <span className="text-[10px] font-medium text-emerald-400">
-                    {stats.healthScore >= 80 ? 'Optimal' : 'Degraded'}
-                  </span>
+            {/* AI Assistant Emerald Pill Button */}
+            <button
+              onClick={onOpenAiAssistant}
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[#0e241c] hover:bg-[#143328] text-[#10b981] border border-[#10b981]/40 text-xs font-bold transition-all shadow-sm group"
+            >
+              <Bot className="w-3.5 h-3.5 text-[#10b981] group-hover:rotate-12 transition-transform" />
+              <span>AI Assistant</span>
+            </button>
+
+            {/* User Profile Info & Avatar */}
+            <div className="flex items-center gap-2 pl-1 border-l border-[#202738]">
+              <div className="relative">
+                <div className="w-8 h-8 rounded-full overflow-hidden border border-emerald-500/40">
+                  <img
+                    src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80"
+                    alt="Marcus Weber"
+                    className="w-full h-full object-cover"
+                    referrerPolicy="no-referrer"
+                  />
                 </div>
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-[#090b10] absolute -bottom-0.5 -right-0.5" />
               </div>
-            </div>
-
-            {/* Pods Status */}
-            <div className="flex items-center gap-2.5 px-3 py-2 rounded-2xl bg-[#141416] border border-white/5 hover:border-white/15 transition-all">
-              <div className="p-1.5 rounded-xl bg-blue-500/15 text-blue-400">
-                <HardDrive className="w-4 h-4" />
-              </div>
-              <div>
-                <div className="text-[10px] uppercase font-semibold tracking-wider text-slate-400">Pods State</div>
-                <div className="text-sm font-bold text-slate-100 flex items-center gap-1.5 font-display">
-                  <span className="text-emerald-400">{stats.runningPods} OK</span>
-                  {stats.unhealthyPods > 0 && (
-                    <span className="text-rose-400 font-semibold">/ {stats.unhealthyPods} Alert</span>
-                  )}
+              <div className="hidden md:block text-left">
+                <div className="text-xs font-bold text-white leading-none">Marcus Weber</div>
+                <div className="text-[10px] text-slate-400 font-mono mt-0.5 leading-none">
+                  SOC Analyst Lead
                 </div>
-              </div>
-            </div>
-
-            {/* CPU Utilization */}
-            <div className="flex items-center gap-2.5 px-3 py-2 rounded-2xl bg-[#141416] border border-white/5 hover:border-white/15 transition-all">
-              <div className="p-1.5 rounded-xl bg-cyan-500/15 text-cyan-400">
-                <Cpu className="w-4 h-4" />
-              </div>
-              <div>
-                <div className="text-[10px] uppercase font-semibold tracking-wider text-slate-400">CPU Load</div>
-                <div className="text-sm font-bold text-slate-100 font-display">{stats.cpuUtilizationPercent}% Avg</div>
-              </div>
-            </div>
-
-            {/* Memory Utilization */}
-            <div className="flex items-center gap-2.5 px-3 py-2 rounded-2xl bg-[#141416] border border-white/5 hover:border-white/15 transition-all">
-              <div className="p-1.5 rounded-xl bg-indigo-500/15 text-indigo-400">
-                <Activity className="w-4 h-4" />
-              </div>
-              <div>
-                <div className="text-[10px] uppercase font-semibold tracking-wider text-slate-400">RAM Load</div>
-                <div className="text-sm font-bold text-slate-100 font-display">{stats.memoryUtilizationPercent}% Avg</div>
-              </div>
-            </div>
-
-            {/* Predictive Alerts */}
-            <div className={`flex items-center gap-2.5 px-3 py-2 rounded-2xl border transition-all ${
-              stats.predictiveAlertsCount > 0
-                ? 'bg-amber-500/10 border-amber-500/30'
-                : 'bg-[#141416] border-white/5 hover:border-white/15'
-            }`}>
-              <div className={`p-1.5 rounded-xl ${stats.predictiveAlertsCount > 0 ? 'bg-amber-500/20 text-amber-400' : 'bg-[#18181b] text-slate-400'}`}>
-                <Zap className="w-4 h-4" />
-              </div>
-              <div>
-                <div className="text-[10px] uppercase font-semibold tracking-wider text-slate-400">Predictive OOM</div>
-                <div className={`text-sm font-bold font-display ${stats.predictiveAlertsCount > 0 ? 'text-amber-300' : 'text-slate-300'}`}>
-                  {stats.predictiveAlertsCount} Active Watch
-                </div>
-              </div>
-            </div>
-
-            {/* 24h Auto-Healed */}
-            <div className="flex items-center gap-2.5 px-3 py-2 rounded-2xl bg-[#141416] border border-white/5 hover:border-white/15 transition-all">
-              <div className="p-1.5 rounded-xl bg-emerald-500/15 text-emerald-400">
-                <Sparkles className="w-4 h-4" />
-              </div>
-              <div>
-                <div className="text-[10px] uppercase font-semibold tracking-wider text-slate-400">Auto-Healed (24h)</div>
-                <div className="text-sm font-bold text-emerald-400 font-display">{stats.autoHealedCount24h} Resolved</div>
               </div>
             </div>
           </div>
-        )}
+        </div>
       </div>
     </header>
   );

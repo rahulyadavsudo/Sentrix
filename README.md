@@ -132,26 +132,56 @@ Sentrix enforces **Zero-Write Least-Privilege Observability**:
 
 ---
 
-## 🚀 Getting Started & Local Development
+## 🚀 Getting Started & Deployment Guides
 
-### Prerequisites
-- Node.js 18+ or higher
-- npm / yarn / pnpm
+For complete, detailed instructions for every platform, refer to the dedicated **[DEPLOYMENT.md](./DEPLOYMENT.md)** guide.
 
-### Quick Start
+### 1. Local Machine / Bare-Metal
+
 ```bash
-# Clone the repository
-git clone <repository-url>
-cd sentrix
-
-# Install dependencies
+# 1. Install dependencies
 npm install
 
-# Start the development server (binds to port 3000)
+# 2. Configure environment (optional)
+cp .env.example .env
+
+# 3. Start development server with live reload (port 3000)
 npm run dev
 
-# Build for production
+# Or build & start in production mode:
 npm run build
+npm run start
+```
+Open **`http://localhost:3000`** in your browser.
+
+---
+
+### 2. Docker & Docker Compose
+
+```bash
+# Run with Docker Compose
+docker compose up -d
+
+# Or build and run standalone container
+docker build -t sentrix-sre .
+docker run -d -p 3000:3000 -e GEMINI_API_KEY="your-key" sentrix-sre
 ```
 
-Open `http://localhost:3000` in your browser to access the **Sentrix SRE Control Plane**.
+---
+
+### 3. Kubernetes Deployment (GKE, EKS, AKS, K3s)
+
+```bash
+# Apply deployment and service manifests
+kubectl apply -f sentrix-k8s.yaml
+```
+
+---
+
+### 4. Cloud Deployments (Cloud Run, AWS App Runner, Azure Container Apps, Render)
+
+- **Google Cloud Run**: `gcloud run deploy sentrix --source . --port 3000 --allow-unauthenticated`
+- **Render / Railway / Fly.io**: Build Command: `npm install && npm run build`, Start Command: `npm run start` (or `node dist/server.cjs`), Port: `3000`.
+
+See **[DEPLOYMENT.md](./DEPLOYMENT.md)** for step-by-step cloud configuration guides.
+

@@ -15,6 +15,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { AlertIntegrationsHub } from './components/AlertIntegrationsHub';
+import { AnimatedBackground } from './components/AnimatedBackground';
 import { AutoHealPolicyEngine } from './components/AutoHealPolicyEngine';
 import { CanaryControlPanel } from './components/CanaryControlPanel';
 import { ChaosSandbox } from './components/ChaosSandbox';
@@ -31,6 +32,7 @@ import { Header } from './components/Header';
 import { HelmCrdManager } from './components/HelmCrdManager';
 import { IncidentHub } from './components/IncidentHub';
 import { KedaAutoscalingPanel } from './components/KedaAutoscalingPanel';
+import { LogCollectorServiceHub } from './components/LogCollectorServiceHub';
 import { LogViewer } from './components/LogViewer';
 import { MicroserviceProfiler } from './components/MicroserviceProfiler';
 import { MicroserviceSpecsDrawer } from './components/MicroserviceSpecsDrawer';
@@ -44,10 +46,12 @@ import { ProductionReadinessHub } from './components/ProductionReadinessHub';
 import { RegisterClusterModal } from './components/RegisterClusterModal';
 import { RunbookAutomationStudio } from './components/RunbookAutomationStudio';
 import { SecurityComplianceAudit } from './components/SecurityComplianceAudit';
+import { SentrixSidebar } from './components/SentrixSidebar';
 import { ServiceMeshTopology } from './components/ServiceMeshTopology';
 import { SloBudgetDashboard } from './components/SloBudgetDashboard';
 import { SreCopilotChat } from './components/SreCopilotChat';
 import { TechStackDiscovery } from './components/TechStackDiscovery';
+import { UITemplateShowcaseModal } from './components/UITemplateShowcaseModal';
 import { ZeroTrustSecretsVault } from './components/ZeroTrustSecretsVault';
 import {
   AlertIntegrationChannel,
@@ -160,7 +164,23 @@ export default function App() {
   const [scaledObjects, setScaledObjects] = useState<KedaScaledObject[]>([]);
   const [vaultSecrets, setVaultSecrets] = useState<VaultSecretItem[]>([]);
   const [isRegisterClusterOpen, setIsRegisterClusterOpen] = useState(false);
+  const [isUITemplatesOpen, setIsUITemplatesOpen] = useState(false);
+  const [activeUiTemplate, setActiveUiTemplate] = useState<'linear-dark' | 'swiss-light' | 'executive-bento'>('linear-dark');
   const [activeAiModel, setActiveAiModel] = useState<string>('gemini-3.7-flash');
+
+  const handleApplyUiTemplate = (templateId: 'linear-dark' | 'swiss-light' | 'executive-bento') => {
+    setActiveUiTemplate(templateId);
+    if (templateId === 'swiss-light') {
+      setTheme('light');
+      showToast('success', 'Applied Swiss Clean Light UI', 'Switched to high-contrast minimal light editorial template.');
+    } else if (templateId === 'linear-dark') {
+      setTheme('dark');
+      showToast('success', 'Applied Linear Obsidian Titanium UI', 'Switched to razor-thin minimal dark developer tool template.');
+    } else if (templateId === 'executive-bento') {
+      setTheme('dark');
+      showToast('success', 'Applied Executive Bento Charcoal UI', 'Switched to clean structured bento dashboard template.');
+    }
+  };
 
   // Fetch all cluster & pipeline data
   const fetchData = async () => {
@@ -837,76 +857,25 @@ export default function App() {
   ).length;
 
   return (
-    <div className={`min-h-screen ${theme === 'light' ? 'light bg-[#f8fafc] text-[#0f172a]' : 'dark bg-[#000000] text-[#f3f4f6]'} font-sans selection:bg-white selection:text-black pb-12 relative flex transition-colors duration-300`}>
-      {/* Slim Vertical Icon Rail / Dock (Matching Left Dock in Reference Screenshot) */}
-      <aside className={`hidden lg:flex flex-col items-center justify-between w-16 py-5 ${theme === 'light' ? 'bg-white border-slate-200 text-slate-700' : 'bg-[#000000] border-white/10 text-white'} border-r shrink-0 sticky top-0 h-screen z-50 transition-colors`}>
-        {/* Top Brand Rainbow Ring Logo */}
-        <div className="flex flex-col items-center gap-6">
-          <button
-            onClick={() => setActiveTab('overview')}
-            className="group relative flex items-center justify-center w-8 h-8 rounded-full p-[2px] bg-gradient-to-tr from-amber-400 via-rose-500 to-cyan-400 hover:scale-105 transition-all shadow-md"
-            title="Sentrix Overview"
-          >
-            <div className={`w-full h-full ${theme === 'light' ? 'bg-white' : 'bg-[#000000]'} rounded-full flex items-center justify-center`}>
-              <span className={`w-2 h-2 rounded-full ${theme === 'light' ? 'bg-slate-900' : 'bg-white'} group-hover:bg-cyan-400 transition-colors`} />
-            </div>
-          </button>
+    <div className={`min-h-screen ${theme === 'light' ? 'light bg-[#f8fafc] text-[#0f172a]' : 'dark bg-[#090b10] text-[#f3f4f6]'} font-sans selection:bg-emerald-500 selection:text-black pb-12 relative flex transition-colors duration-300 overflow-x-hidden`}>
+      {/* Dynamic Animated Ambient Background */}
+      <AnimatedBackground theme={theme} />
 
-          {/* Core Navigation Icons (Clean monochrome outline icons) */}
-          <div className="flex flex-col items-center gap-2.5">
-            {[
-              { id: 'incidents' as TabType, icon: Flame, title: 'Incident Hub' },
-              { id: 'pipeline' as TabType, icon: GitBranch, title: 'CI/CD Pipelines' },
-              { id: 'topology' as TabType, icon: Boxes, title: 'Cluster Topology' },
-              { id: 'traces' as TabType, icon: Activity, title: 'OTel Distributed Traces' },
-              { id: 'finops' as TabType, icon: DollarSign, title: 'FinOps Cloud Spend' },
-              { id: 'fleet' as TabType, icon: Globe, title: 'Multi-Cluster Fleet' },
-              { id: 'vault' as TabType, icon: Lock, title: 'Vault KMS Secrets' },
-              { id: 'copilot' as TabType, icon: Sparkles, title: 'AI SRE Copilot' },
-            ].map((item) => {
-              const Icon = item.icon;
-              const isActive = activeTab === item.id;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => setActiveTab(item.id)}
-                  className={`p-2.5 rounded-2xl transition-all duration-200 relative group ${
-                    isActive
-                      ? theme === 'light'
-                        ? 'bg-slate-900 text-white shadow-md'
-                        : 'bg-white text-black shadow-lg shadow-white/10'
-                      : theme === 'light'
-                        ? 'text-slate-500 hover:text-slate-900 hover:bg-slate-100'
-                        : 'text-slate-500 hover:text-white hover:bg-[#18181b]'
-                  }`}
-                  title={item.title}
-                >
-                  <Icon className="w-4 h-4" />
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Bottom User Avatar */}
-        <div className="flex flex-col items-center gap-3">
-          <div
-            onClick={() => setIsRegisterClusterOpen(true)}
-            className="w-8 h-8 rounded-full ring-1 ring-white/20 overflow-hidden cursor-pointer hover:ring-white/50 transition-all"
-            title="Cluster Settings"
-          >
-            <img
-              src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80"
-              alt="Avatar"
-              className="w-full h-full object-cover"
-              referrerPolicy="no-referrer"
-            />
-          </div>
-        </div>
-      </aside>
+      {/* SentriX Desktop Navigation Sidebar matching reference screenshot */}
+      <div className="hidden lg:block shrink-0">
+        <SentrixSidebar
+          activeTab={activeTab}
+          onChangeTab={setActiveTab}
+          issueCount={activeIssueCount}
+          predictiveAlertCount={activePredictiveAlertCount}
+          activeWorkflowsCount={activeWorkflowsCount}
+          onOpenCopilot={() => setActiveTab('copilot')}
+          onOpenSettings={() => setIsRegisterClusterOpen(true)}
+        />
+      </div>
 
       {/* Main Layout Area */}
-      <div className={`flex-1 flex flex-col min-w-0 ${theme === 'light' ? 'bg-[#f8fafc]' : 'bg-[#000000]'} transition-colors`}>
+      <div className={`flex-1 flex flex-col min-w-0 ${theme === 'light' ? 'bg-[#f8fafc]' : 'bg-[#090b10]'} transition-colors`}>
         {/* Global Header */}
         <div className="relative z-40">
           <Header
@@ -932,10 +901,12 @@ export default function App() {
                 : 'Gemini 3.7 Flash'
             }
             onOpenModelSwitchTab={() => setActiveTab('model-switch')}
+            onOpenUITemplates={() => setIsUITemplatesOpen(true)}
+            onOpenAiAssistant={() => setActiveTab('copilot')}
           />
         </div>
 
-        {/* Responsive Navigation Tab Bar */}
+        {/* Responsive Navigation Tab Bar (Top Sub-Tabs) */}
         <div className="relative z-30">
           <NavigationTabs
             activeTab={activeTab}
@@ -961,6 +932,7 @@ export default function App() {
             commits={commits}
             workflowRuns={workflowRuns}
             onTriggerRun={handleTriggerRun}
+            onWorkflowRunCreated={(newRun) => setWorkflowRuns((prev) => [newRun, ...prev])}
             onConnectRepo={handleConnectRepo}
             onSyncRepo={handleSyncRepo}
             onDisconnectRepo={handleDisconnectRepo}
@@ -968,6 +940,8 @@ export default function App() {
             onNavigateToTechStack={() => setActiveTab('tech-stack')}
           />
         )}
+
+        {activeTab === 'log-collector' && <LogCollectorServiceHub />}
 
         {activeTab === 'tech-stack' && (
           <TechStackDiscovery
@@ -1204,6 +1178,14 @@ export default function App() {
           showToast('success', 'Cluster Registered', `Cluster ${newCluster.clusterName} successfully joined the federated control plane.`);
           fetchData();
         }}
+      />
+
+      {/* Minimal & Classy UI Templates Showcase Modal */}
+      <UITemplateShowcaseModal
+        isOpen={isUITemplatesOpen}
+        onClose={() => setIsUITemplatesOpen(false)}
+        currentTemplate={activeUiTemplate}
+        onSelectTemplate={handleApplyUiTemplate}
       />
 
       {/* Toast Notification Container */}
