@@ -1,4 +1,5 @@
 import React from 'react';
+import { motion } from 'motion/react';
 import {
   Activity,
   AlertOctagon,
@@ -18,6 +19,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { SloTarget } from '../types';
+import { AnimatedStatusBadge, AnimatedHealthMeter } from './AnimatedStatusComponents';
 
 interface SloBudgetDashboardProps {
   slos: SloTarget[];
@@ -31,7 +33,11 @@ export const SloBudgetDashboard: React.FC<SloBudgetDashboardProps> = ({
   return (
     <div className="space-y-6">
       {/* Top Banner */}
-      <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-lg flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-lg flex flex-col md:flex-row md:items-center md:justify-between gap-4"
+      >
         <div>
           <h2 className="text-lg font-bold text-white tracking-tight flex items-center gap-2">
             <Gauge className="w-5 h-5 text-purple-400" />
@@ -43,14 +49,17 @@ export const SloBudgetDashboard: React.FC<SloBudgetDashboardProps> = ({
         </div>
 
         {/* Global Reliability Overview */}
-        <div className="flex items-center gap-3 bg-slate-950 px-4 py-2.5 rounded-xl border border-slate-800">
+        <motion.div
+          whileHover={{ scale: 1.02 }}
+          className="flex items-center gap-3 bg-slate-950 px-4 py-2.5 rounded-xl border border-slate-800"
+        >
           <ShieldCheck className="w-6 h-6 text-emerald-400" />
           <div>
             <div className="text-[10px] text-slate-500 uppercase font-semibold">Tier-0 Global SLO</div>
             <div className="text-sm font-bold text-emerald-400 font-mono">99.94% Compliant</div>
           </div>
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
 
       {/* SLO Targets Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -59,7 +68,11 @@ export const SloBudgetDashboard: React.FC<SloBudgetDashboardProps> = ({
           const isHealthy = slo.errorBudgetRemainingPercent >= 70;
 
           return (
-            <div
+            <motion.div
+              layout
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              whileHover={{ y: -3, transition: { duration: 0.2 } }}
               key={slo.id}
               className={`rounded-xl border p-5 transition-all shadow-lg ${
                 isAtRisk
@@ -83,32 +96,37 @@ export const SloBudgetDashboard: React.FC<SloBudgetDashboardProps> = ({
                 {/* Error Budget Remaining % Badge */}
                 <div className="text-right">
                   <div className="text-[10px] text-slate-500 uppercase font-semibold">Budget Left</div>
-                  <div
+                  <motion.div
+                    key={slo.errorBudgetRemainingPercent}
+                    initial={{ scale: 0.9 }}
+                    animate={{ scale: 1 }}
                     className={`text-xl font-bold font-mono ${
                       isHealthy ? 'text-emerald-400' : isAtRisk ? 'text-amber-400' : 'text-rose-400'
                     }`}
                   >
                     {slo.errorBudgetRemainingPercent}%
-                  </div>
+                  </motion.div>
                 </div>
               </div>
 
-              {/* Progress Bar of Budget */}
+              {/* Progress Bar of Budget with Smooth Animated Bar */}
               <div className="mt-4 space-y-1.5">
                 <div className="flex justify-between text-[11px] text-slate-400">
                   <span>SLI Current: <strong className="text-white font-mono">{slo.currentSliPercent}%</strong></span>
                   <span>Target: <strong className="text-slate-300 font-mono">{slo.sloTargetPercent}%</strong></span>
                 </div>
                 <div className="w-full bg-slate-950 h-2.5 rounded-full overflow-hidden border border-slate-800">
-                  <div
-                    className={`h-full rounded-full transition-all ${
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${Math.min(100, Math.max(0, slo.errorBudgetRemainingPercent))}%` }}
+                    transition={{ duration: 0.8, ease: 'easeOut' }}
+                    className={`h-full rounded-full ${
                       isHealthy
                         ? 'bg-emerald-500'
                         : isAtRisk
                         ? 'bg-gradient-to-r from-amber-500 to-rose-500'
                         : 'bg-rose-500'
                     }`}
-                    style={{ width: `${Math.min(100, Math.max(0, slo.errorBudgetRemainingPercent))}%` }}
                   />
                 </div>
               </div>
@@ -150,7 +168,9 @@ export const SloBudgetDashboard: React.FC<SloBudgetDashboardProps> = ({
                   </span>
                 </div>
 
-                <button
+                <motion.button
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.97 }}
                   onClick={() => onToggleFreeze(slo.id, !slo.pipelineFreezeTriggered)}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
                     slo.pipelineFreezeTriggered
@@ -160,9 +180,9 @@ export const SloBudgetDashboard: React.FC<SloBudgetDashboardProps> = ({
                 >
                   <Snowflake className={`w-3.5 h-3.5 ${slo.pipelineFreezeTriggered ? 'text-rose-400' : 'text-slate-400'}`} />
                   <span>{slo.pipelineFreezeTriggered ? 'Pipeline Frozen' : 'Freeze Pipeline'}</span>
-                </button>
+                </motion.button>
               </div>
-            </div>
+            </motion.div>
           );
         })}
       </div>

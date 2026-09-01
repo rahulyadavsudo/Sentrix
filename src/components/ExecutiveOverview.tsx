@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { motion } from 'motion/react';
 import {
   Activity,
   AlertTriangle,
@@ -31,6 +32,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { ClusterOverview, ClusterFleetNode, DiagnosticIssue, GitHubRepo } from '../types';
+import { AnimatedStatusBadge, AnimatedHealthMeter } from './AnimatedStatusComponents';
 
 interface ExecutiveOverviewProps {
   clusterOverview: ClusterOverview | null;
@@ -167,7 +169,13 @@ export const ExecutiveOverview: React.FC<ExecutiveOverviewProps> = ({
           </div>
 
           {/* Primary High-End Solid Dark Cluster Card (Matches Payoneer card from screenshot) */}
-          <div className="relative overflow-hidden rounded-3xl bg-[#141416] border border-white/10 p-6 sm:p-7 text-white shadow-2xl shadow-black/80 transition-all hover:border-white/20">
+          <motion.div
+            layout
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            whileHover={{ y: -3, transition: { duration: 0.2 } }}
+            className="relative overflow-hidden rounded-3xl bg-[#141416] border border-white/10 p-6 sm:p-7 text-white shadow-2xl shadow-black/80 transition-all hover:border-white/20"
+          >
             {/* Background subtle radial glow */}
             <div className="absolute -top-24 -right-24 w-64 h-64 rounded-full bg-cyan-500/5 blur-3xl pointer-events-none" />
 
@@ -201,14 +209,16 @@ export const ExecutiveOverview: React.FC<ExecutiveOverviewProps> = ({
               </div>
             </div>
 
-            {/* Bottom Row: Expiry / Nodes count */}
+            {/* Bottom Row: Expiry / Nodes count with Animated Status Badge */}
             <div className="flex items-center justify-between text-xs text-slate-400 font-mono relative z-10 pt-2 border-t border-white/5">
               <span>{clusterOverview?.stats.readyNodes || 17} / {clusterOverview?.stats.totalNodes || 24} Nodes Ready</span>
-              <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-bold">
-                PRIMARY INGRESS
-              </span>
+              <AnimatedStatusBadge
+                status="healthy"
+                label="PRIMARY INGRESS"
+                size="sm"
+              />
             </div>
-          </div>
+          </motion.div>
 
           {/* Currency / Cloud Selector Pills (EUR, USD, UAH -> ALL, GKE, EKS, AKS) */}
           <div className="flex items-center gap-2">
@@ -521,37 +531,69 @@ export const ExecutiveOverview: React.FC<ExecutiveOverviewProps> = ({
           {/* Three Colorful Pastel Summary Cards (Exact replica of lavender, butter yellow, and mint green cards) */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
             {/* Card 1: Total Earning (Lavender #DCE4FD) */}
-            <div className="p-5 rounded-3xl bg-[#dce4fd] text-[#0b101e] shadow-xl space-y-3 transition-all hover:scale-[1.02]">
+            <motion.div
+              layout
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              whileHover={{ y: -4, scale: 1.02, transition: { duration: 0.2 } }}
+              className="p-5 rounded-3xl bg-[#dce4fd] text-[#0b101e] shadow-xl space-y-3 transition-shadow"
+            >
               <div className="flex items-center justify-between text-xs font-semibold text-[#3b4763]">
                 <span>Total earning</span>
                 <ArrowUpRight className="w-4 h-4" />
               </div>
-              <div className="text-2xl sm:text-3xl font-black font-display tracking-tight text-[#0b101e]">
+              <motion.div
+                initial={{ opacity: 0.8 }}
+                animate={{ opacity: 1 }}
+                className="text-2xl sm:text-3xl font-black font-display tracking-tight text-[#0b101e]"
+              >
                 75,854.50
-              </div>
-            </div>
+              </motion.div>
+            </motion.div>
 
             {/* Card 2: Total Spendings (Butter Yellow #FDE8B3) */}
-            <div className="p-5 rounded-3xl bg-[#fde8b3] text-[#1c1402] shadow-xl space-y-3 transition-all hover:scale-[1.02]">
+            <motion.div
+              layout
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.05 }}
+              whileHover={{ y: -4, scale: 1.02, transition: { duration: 0.2 } }}
+              className="p-5 rounded-3xl bg-[#fde8b3] text-[#1c1402] shadow-xl space-y-3 transition-shadow"
+            >
               <div className="flex items-center justify-between text-xs font-semibold text-[#5a4816]">
                 <span>Total spendings</span>
                 <ArrowDownLeft className="w-4 h-4" />
               </div>
-              <div className="text-2xl sm:text-3xl font-black font-display tracking-tight text-[#1c1402]">
+              <motion.div
+                initial={{ opacity: 0.8 }}
+                animate={{ opacity: 1 }}
+                className="text-2xl sm:text-3xl font-black font-display tracking-tight text-[#1c1402]"
+              >
                 8,947.00
-              </div>
-            </div>
+              </motion.div>
+            </motion.div>
 
             {/* Card 3: Spending Goal (Mint Green #D2F4E2) */}
-            <div className="p-5 rounded-3xl bg-[#d2f4e2] text-[#061e12] shadow-xl space-y-3 transition-all hover:scale-[1.02]">
+            <motion.div
+              layout
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.1 }}
+              whileHover={{ y: -4, scale: 1.02, transition: { duration: 0.2 } }}
+              className="p-5 rounded-3xl bg-[#d2f4e2] text-[#061e12] shadow-xl space-y-3 transition-shadow"
+            >
               <div className="flex items-center justify-between text-xs font-semibold text-[#1e5238]">
                 <span>Spending goal</span>
                 <CheckCircle2 className="w-4 h-4" />
               </div>
-              <div className="text-2xl sm:text-3xl font-black font-display tracking-tight text-[#061e12]">
+              <motion.div
+                initial={{ opacity: 0.8 }}
+                animate={{ opacity: 1 }}
+                className="text-2xl sm:text-3xl font-black font-display tracking-tight text-[#061e12]"
+              >
                 9,500.00
-              </div>
-            </div>
+              </motion.div>
+            </motion.div>
           </div>
 
           {/* Bottom SRE & Support Cards (Matching bottom cards in screenshot) */}

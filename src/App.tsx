@@ -53,6 +53,7 @@ import { SecurityComplianceAudit } from './components/SecurityComplianceAudit';
 import { SentrixSidebar } from './components/SentrixSidebar';
 import { ServiceMeshTopology } from './components/ServiceMeshTopology';
 import { SloBudgetDashboard } from './components/SloBudgetDashboard';
+import { SmartRebalancerStudio } from './components/SmartRebalancerStudio';
 import { SreCopilotChat } from './components/SreCopilotChat';
 import { TechStackDiscovery } from './components/TechStackDiscovery';
 import { UITemplateShowcaseModal } from './components/UITemplateShowcaseModal';
@@ -1244,6 +1245,10 @@ export default function App() {
             }}
             onShowToast={showToast}
           />
+        )}
+
+        {activeTab === 'rebalancer' && (
+          <SmartRebalancerStudio theme={theme} />
         )}
 
         {activeTab === 'traces' && (

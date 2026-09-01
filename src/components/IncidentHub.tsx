@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import {
   AlertOctagon,
   AlertTriangle,
@@ -39,6 +40,7 @@ import {
   IncidentEvidenceItem,
   IncidentAiAnalysis
 } from '../types';
+import { AnimatedStatusBadge, AnimatedMetricCard } from './AnimatedStatusComponents';
 
 interface IncidentHubProps {
   onShowToast: (type: 'success' | 'error' | 'info', title: string, description: string) => void;
@@ -200,58 +202,24 @@ export const IncidentHub: React.FC<IncidentHubProps> = ({ onShowToast, onNavigat
   const getSeverityBadge = (severity: IncidentSeverity) => {
     switch (severity) {
       case 'CRITICAL':
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-xs font-bold bg-rose-500/20 text-rose-300 border border-rose-500/40">
-            <span className="w-1.5 h-1.5 rounded-full bg-rose-400 animate-ping" />
-            CRITICAL
-          </span>
-        );
+        return <AnimatedStatusBadge status="critical" label="CRITICAL" size="sm" />;
       case 'HIGH':
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-            HIGH
-          </span>
-        );
+        return <AnimatedStatusBadge status="warning" label="HIGH" size="sm" />;
       case 'WARNING':
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-xs font-semibold bg-blue-500/20 text-blue-300 border border-blue-500/30">
-            <span className="w-1.5 h-1.5 rounded-full bg-blue-400" />
-            WARNING
-          </span>
-        );
+        return <AnimatedStatusBadge status="warning" label="WARNING" size="sm" />;
       default:
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-xs font-medium bg-slate-500/20 text-slate-300 border border-slate-500/30">
-            INFO
-          </span>
-        );
+        return <AnimatedStatusBadge status="info" label="INFO" size="sm" />;
     }
   };
 
   const getStatusBadge = (status: IncidentStatus) => {
     switch (status) {
       case 'OPEN':
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-xs font-semibold bg-rose-500/20 text-rose-300 border border-rose-500/30">
-            <Flame className="w-3 h-3" />
-            OPEN
-          </span>
-        );
+        return <AnimatedStatusBadge status="critical" label="OPEN" size="sm" />;
       case 'INVESTIGATING':
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-xs font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/30">
-            <Search className="w-3 h-3 animate-spin" />
-            INVESTIGATING
-          </span>
-        );
+        return <AnimatedStatusBadge status="investigating" label="INVESTIGATING" size="sm" />;
       case 'RESOLVED':
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-            <CheckCircle2 className="w-3 h-3" />
-            RESOLVED
-          </span>
-        );
+        return <AnimatedStatusBadge status="resolved" label="RESOLVED" size="sm" />;
       default:
         return null;
     }
@@ -288,70 +256,46 @@ export const IncidentHub: React.FC<IncidentHubProps> = ({ onShowToast, onNavigat
     <div id="incident-hub-container" className="space-y-6">
       {/* Top Banner: Metric Highlights & Fingerprinting Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-        <div className="bg-slate-900/80 dark:bg-slate-900/80 border border-slate-800 dark:border-slate-800 rounded-xl p-4 flex items-center justify-between shadow-lg">
-          <div>
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Active Incidents</p>
-            <p className="text-2xl font-bold text-white mt-1">
-              {stats.open + stats.investigating}
-            </p>
-            <p className="text-xs text-rose-400 mt-0.5">{stats.critical} Critical • {stats.high} High</p>
-          </div>
-          <div className="w-11 h-11 rounded-lg bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400">
-            <Flame className="w-6 h-6" />
-          </div>
-        </div>
+        <AnimatedMetricCard
+          title="Active Incidents"
+          value={stats.open + stats.investigating}
+          subValue="Active in fleet"
+          trend="critical"
+          trendValue={`${stats.critical} Crit • ${stats.high} High`}
+          icon={<Flame className="w-5 h-5 text-rose-400" />}
+        />
 
-        <div className="bg-slate-900/80 dark:bg-slate-900/80 border border-slate-800 dark:border-slate-800 rounded-xl p-4 flex items-center justify-between shadow-lg">
-          <div>
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Fingerprint Deduped</p>
-            <p className="text-2xl font-bold text-cyan-400 mt-1">
-              {stats.dedupedSignals}
-            </p>
-            <p className="text-xs text-slate-400 mt-0.5">Raw signals aggregated into {stats.total} incidents</p>
-          </div>
-          <div className="w-11 h-11 rounded-lg bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400">
-            <Hash className="w-6 h-6" />
-          </div>
-        </div>
+        <AnimatedMetricCard
+          title="Fingerprint Deduped"
+          value={stats.dedupedSignals}
+          subValue={`Into ${stats.total} incidents`}
+          icon={<Hash className="w-5 h-5 text-cyan-400" />}
+        />
 
-        <div className="bg-slate-900/80 dark:bg-slate-900/80 border border-slate-800 dark:border-slate-800 rounded-xl p-4 flex items-center justify-between shadow-lg">
-          <div>
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Investigating</p>
-            <p className="text-2xl font-bold text-amber-400 mt-1">
-              {stats.investigating}
-            </p>
-            <p className="text-xs text-slate-400 mt-0.5">Under active SRE triage</p>
-          </div>
-          <div className="w-11 h-11 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
-            <Activity className="w-6 h-6" />
-          </div>
-        </div>
+        <AnimatedMetricCard
+          title="Investigating"
+          value={stats.investigating}
+          subValue="Under active SRE triage"
+          trend="down"
+          trendValue="In triage"
+          icon={<Activity className="w-5 h-5 text-amber-400" />}
+        />
 
-        <div className="bg-slate-900/80 dark:bg-slate-900/80 border border-slate-800 dark:border-slate-800 rounded-xl p-4 flex items-center justify-between shadow-lg">
-          <div>
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Resolved</p>
-            <p className="text-2xl font-bold text-emerald-400 mt-1">
-              {stats.resolved}
-            </p>
-            <p className="text-xs text-slate-400 mt-0.5">Autonomous & manual closures</p>
-          </div>
-          <div className="w-11 h-11 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
-            <CheckCircle2 className="w-6 h-6" />
-          </div>
-        </div>
+        <AnimatedMetricCard
+          title="Resolved"
+          value={stats.resolved}
+          subValue="Remediated closures"
+          trend="up"
+          trendValue="Closed"
+          icon={<CheckCircle2 className="w-5 h-5 text-emerald-400" />}
+        />
 
-        <div className="bg-slate-900/80 dark:bg-slate-900/80 border border-slate-800 dark:border-slate-800 rounded-xl p-4 flex items-center justify-between shadow-lg">
-          <div>
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">AI Diagnostic Engine</p>
-            <p className="text-2xl font-bold text-purple-400 mt-1">
-              Gemini 3.7
-            </p>
-            <p className="text-xs text-emerald-400 mt-0.5">Multi-point trace correlation</p>
-          </div>
-          <div className="w-11 h-11 rounded-lg bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400">
-            <Sparkles className="w-6 h-6" />
-          </div>
-        </div>
+        <AnimatedMetricCard
+          title="AI Diagnostic Engine"
+          value="Gemini 3.7"
+          subValue="Correlating traces"
+          icon={<Sparkles className="w-5 h-5 text-purple-400" />}
+        />
       </div>
 
       {/* Control Bar: Filters, Search & Simulation Trigger */}
@@ -425,62 +369,77 @@ export const IncidentHub: React.FC<IncidentHubProps> = ({ onShowToast, onNavigat
             <span>Deterministic Fingerprints</span>
           </div>
 
-          {filteredIncidents.length === 0 ? (
-            <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-8 text-center">
-              <CheckCircle2 className="w-10 h-10 text-emerald-400 mx-auto mb-2" />
-              <p className="text-sm font-semibold text-slate-200">No matching incidents found</p>
-              <p className="text-xs text-slate-500 mt-1">All telemetry is within nominal SLO limits or filtered out.</p>
-            </div>
-          ) : (
-            filteredIncidents.map((inc) => {
-              const isSelected = selectedIncident?.id === inc.id;
-              return (
-                <div
-                  key={inc.id}
-                  id={`incident-card-${inc.id}`}
-                  onClick={() => setSelectedIncident(inc)}
-                  className={`p-4 rounded-xl border transition cursor-pointer relative overflow-hidden ${
-                    isSelected
-                      ? 'bg-slate-900 border-cyan-500/60 shadow-lg shadow-cyan-950/40 ring-1 ring-cyan-500/30'
-                      : 'bg-slate-900/60 hover:bg-slate-900/90 border-slate-800/80 hover:border-slate-700'
-                  }`}
+          <div className="space-y-3">
+            <AnimatePresence mode="popLayout">
+              {filteredIncidents.length === 0 ? (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  className="bg-slate-900/50 border border-slate-800 rounded-xl p-8 text-center"
                 >
-                  <div className="flex items-start justify-between gap-2 mb-2">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-xs font-mono font-bold text-cyan-400">{inc.id}</span>
-                      {getSeverityBadge(inc.severity)}
-                      {getStatusBadge(inc.status)}
-                    </div>
-                    <span className="text-[11px] font-mono text-slate-400 whitespace-nowrap">
-                      {new Date(inc.firstSeenAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                  </div>
+                  <CheckCircle2 className="w-10 h-10 text-emerald-400 mx-auto mb-2" />
+                  <p className="text-sm font-semibold text-slate-200">No matching incidents found</p>
+                  <p className="text-xs text-slate-500 mt-1">All telemetry is within nominal SLO limits or filtered out.</p>
+                </motion.div>
+              ) : (
+                filteredIncidents.map((inc) => {
+                  const isSelected = selectedIncident?.id === inc.id;
+                  return (
+                    <motion.div
+                      layout
+                      initial={{ opacity: 0, y: -10, scale: 0.98 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.9, height: 0 }}
+                      transition={{ duration: 0.25 }}
+                      whileHover={{ scale: 1.01, transition: { duration: 0.15 } }}
+                      key={inc.id}
+                      id={`incident-card-${inc.id}`}
+                      onClick={() => setSelectedIncident(inc)}
+                      className={`p-4 rounded-xl border transition cursor-pointer relative overflow-hidden ${
+                        isSelected
+                          ? 'bg-slate-900 border-cyan-500/60 shadow-lg shadow-cyan-950/40 ring-1 ring-cyan-500/30'
+                          : 'bg-slate-900/60 hover:bg-slate-900/90 border-slate-800/80 hover:border-slate-700'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2 mb-2">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-xs font-mono font-bold text-cyan-400">{inc.id}</span>
+                          {getSeverityBadge(inc.severity)}
+                          {getStatusBadge(inc.status)}
+                        </div>
+                        <span className="text-[11px] font-mono text-slate-400 whitespace-nowrap">
+                          {new Date(inc.firstSeenAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
 
-                  <h4 className="text-sm font-bold text-slate-100 line-clamp-1 group-hover:text-cyan-300">
-                    {inc.title}
-                  </h4>
+                      <h4 className="text-sm font-bold text-slate-100 line-clamp-1 group-hover:text-cyan-300">
+                        {inc.title}
+                      </h4>
 
-                  <div className="mt-2.5 flex items-center justify-between text-xs text-slate-400 font-mono">
-                    <div className="flex items-center gap-2">
-                      <Server className="w-3.5 h-3.5 text-slate-500" />
-                      <span>{inc.service}</span>
-                      <span className="text-slate-600">•</span>
-                      <span className="text-slate-400">{inc.namespace}</span>
-                    </div>
+                      <div className="mt-2.5 flex items-center justify-between text-xs text-slate-400 font-mono">
+                        <div className="flex items-center gap-2">
+                          <Server className="w-3.5 h-3.5 text-slate-500" />
+                          <span>{inc.service}</span>
+                          <span className="text-slate-600">•</span>
+                          <span className="text-slate-400">{inc.namespace}</span>
+                        </div>
 
-                    <div className="flex items-center gap-1.5 bg-slate-950/80 px-2 py-0.5 rounded border border-slate-800/80">
-                      <Hash className="w-3 h-3 text-cyan-400" />
-                      <span className="text-cyan-300 font-semibold">{inc.duplicateSignalCount || 1} deduplicated</span>
-                    </div>
-                  </div>
+                        <div className="flex items-center gap-1.5 bg-slate-950/80 px-2 py-0.5 rounded border border-slate-800/80">
+                          <Hash className="w-3 h-3 text-cyan-400" />
+                          <span className="text-cyan-300 font-semibold">{inc.duplicateSignalCount || 1} deduplicated</span>
+                        </div>
+                      </div>
 
-                  <div className="mt-2 text-[11px] font-mono text-slate-500 truncate bg-slate-950/50 px-2 py-1 rounded border border-slate-800/50">
-                    Fingerprint: <span className="text-slate-400">{inc.fingerprint}</span>
-                  </div>
-                </div>
-              );
-            })
-          )}
+                      <div className="mt-2 text-[11px] font-mono text-slate-500 truncate bg-slate-950/50 px-2 py-1 rounded border border-slate-800/50">
+                        Fingerprint: <span className="text-slate-400">{inc.fingerprint}</span>
+                      </div>
+                    </motion.div>
+                  );
+                })
+              )}
+            </AnimatePresence>
+          </div>
         </div>
 
         {/* Right Column: Selected Incident Deep Dive & Timeline */}

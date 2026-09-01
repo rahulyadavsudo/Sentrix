@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import {
   AlertCircle,
   AlertOctagon,
@@ -23,6 +24,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { AutoHealingRecord, DiagnosticIssue } from '../types';
+import { AnimatedStatusBadge } from './AnimatedStatusComponents';
 
 interface DiagnosticRCAPanelProps {
   issues: DiagnosticIssue[];
@@ -129,59 +131,60 @@ export const DiagnosticRCAPanel: React.FC<DiagnosticRCAPanelProps> = ({
           </div>
 
           <div className="space-y-3">
-            {issues.map((issue) => {
-              const isSelected = issue.id === selectedIssueId;
-              const isResolved = issue.status === 'resolved';
+            <AnimatePresence mode="popLayout">
+              {issues.map((issue) => {
+                const isSelected = issue.id === selectedIssueId;
+                const isResolved = issue.status === 'resolved';
 
-              return (
-                <div
-                  key={issue.id}
-                  onClick={() => setSelectedIssueId(issue.id)}
-                  className={`p-4 rounded-xl border cursor-pointer transition-all duration-150 ${
-                    isSelected
-                      ? 'bg-slate-850 border-cyan-500 shadow-md shadow-cyan-500/10'
-                      : 'bg-slate-900 border-slate-800 hover:border-slate-700'
-                  }`}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <span
-                      className={`text-[10px] font-bold px-2 py-0.5 rounded border uppercase ${
-                        isResolved
-                          ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30'
-                          : issue.severity === 'critical'
-                          ? 'bg-rose-500/10 text-rose-300 border-rose-500/40'
-                          : 'bg-amber-500/10 text-amber-300 border-amber-500/40'
-                      }`}
-                    >
-                      {isResolved ? 'Resolved' : issue.type}
-                    </span>
+                return (
+                  <motion.div
+                    layout
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    whileHover={{ scale: 1.01, transition: { duration: 0.15 } }}
+                    key={issue.id}
+                    onClick={() => setSelectedIssueId(issue.id)}
+                    className={`p-4 rounded-xl border cursor-pointer transition-all duration-150 ${
+                      isSelected
+                        ? 'bg-slate-850 border-cyan-500 shadow-md shadow-cyan-500/10'
+                        : 'bg-slate-900 border-slate-800 hover:border-slate-700'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <AnimatedStatusBadge
+                        status={isResolved ? 'resolved' : issue.severity === 'critical' ? 'critical' : 'warning'}
+                        label={isResolved ? 'Resolved' : issue.type}
+                        size="sm"
+                      />
 
-                    <span className="text-[10px] font-mono text-slate-400">
-                      {issue.namespace}/{issue.serviceName}
-                    </span>
-                  </div>
-
-                  <h4 className="text-xs font-bold text-white mt-2 leading-snug">
-                    {issue.title}
-                  </h4>
-
-                  <p className="text-[11px] text-slate-400 mt-1 line-clamp-2">
-                    {issue.rootCause}
-                  </p>
-
-                  <div className="mt-3 pt-2.5 border-t border-slate-800 flex items-center justify-between text-[11px]">
-                    <span className="font-mono text-slate-500">
-                      {issue.podName.substring(0, 18)}...
-                    </span>
-                    {issue.autoHealAvailable && !isResolved && (
-                      <span className="text-cyan-400 font-semibold flex items-center gap-1">
-                        <Zap className="w-3 h-3 fill-current text-cyan-400" /> 1-Click Heal
+                      <span className="text-[10px] font-mono text-slate-400">
+                        {issue.namespace}/{issue.serviceName}
                       </span>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
+                    </div>
+
+                    <h4 className="text-xs font-bold text-white mt-2 leading-snug">
+                      {issue.title}
+                    </h4>
+
+                    <p className="text-[11px] text-slate-400 mt-1 line-clamp-2">
+                      {issue.rootCause}
+                    </p>
+
+                    <div className="mt-3 pt-2.5 border-t border-slate-800 flex items-center justify-between text-[11px]">
+                      <span className="font-mono text-slate-500">
+                        {issue.podName.substring(0, 18)}...
+                      </span>
+                      {issue.autoHealAvailable && !isResolved && (
+                        <span className="text-cyan-400 font-semibold flex items-center gap-1">
+                          <Zap className="w-3 h-3 fill-current text-cyan-400" /> 1-Click Heal
+                        </span>
+                      )}
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </AnimatePresence>
           </div>
         </div>
 

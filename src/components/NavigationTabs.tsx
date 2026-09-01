@@ -40,6 +40,7 @@ export type TabType =
   | 'tech-stack'
   | 'failure-history'
   | 'topology'
+  | 'rebalancer'
   | 'traces'
   | 'helm'
   | 'autoscaling'
@@ -271,6 +272,15 @@ export const NavigationTabs: React.FC<NavigationTabsProps> = ({
             shortLabel: 'Topology Map',
             icon: Boxes,
             description: 'Real-time node-to-pod visual graph with memory stress heatmaps',
+          },
+          {
+            id: 'rebalancer',
+            label: 'Smart Rebalancer & CFS Throttling',
+            shortLabel: 'Rebalancer',
+            icon: Gauge,
+            badge: 'CFS',
+            badgeColor: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
+            description: 'Automated CPU CFS throttling detection, hot spot bin-packing, and zero-downtime pod relocations',
           },
           {
             id: 'fleet',
