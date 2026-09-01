@@ -40,6 +40,7 @@ import {
   GitHubRepo,
   WorkflowRun,
 } from '../types';
+import { safeFetchJson } from '../lib/api';
 
 interface FailureHistoryStudioProps {
   repo: GitHubRepo | null;
@@ -77,7 +78,7 @@ export const FailureHistoryStudio: React.FC<FailureHistoryStudioProps> = ({
   const [copiedCodeId, setCopiedCodeId] = useState<string | null>(null);
 
   // Interactive Custom Log Analyzer State
-  const [customRepo, setCustomRepo] = useState(repo ? `${repo.owner}/${repo.name}` : 'acme-enterprise/payment-service');
+  const [customRepo, setCustomRepo] = useState(repo?.owner && repo?.name ? `${repo.owner}/${repo.name}` : 'acme-enterprise/payment-service');
   const [customBranch, setCustomBranch] = useState(repo?.branch || 'main');
   const [customStep, setCustomStep] = useState('Integration & Unit Test Suite');
   const [customLogs, setCustomLogs] = useState(
@@ -90,28 +91,26 @@ export const FailureHistoryStudio: React.FC<FailureHistoryStudioProps> = ({
   const fetchFailureHistory = async () => {
     setIsLoading(true);
     try {
-      const [buildsRes, depRes] = await Promise.all([
-        fetch('/api/history/failed-builds'),
-        fetch('/api/history/failed-deployments'),
+      const [buildsData, depData] = await Promise.all([
+        safeFetchJson('/api/history/failed-builds'),
+        safeFetchJson('/api/history/failed-deployments'),
       ]);
 
-      if (buildsRes.ok) {
-        const data = await buildsRes.json();
-        setFailedBuilds(data.failedBuilds || []);
-        if (data.failedBuilds?.length > 0 && !selectedBuildId) {
-          setSelectedBuildId(data.failedBuilds[0].id);
+      if (buildsData && buildsData.failedBuilds) {
+        setFailedBuilds(buildsData.failedBuilds);
+        if (buildsData.failedBuilds.length > 0 && !selectedBuildId) {
+          setSelectedBuildId(buildsData.failedBuilds[0].id);
         }
       }
 
-      if (depRes.ok) {
-        const data = await depRes.json();
-        setFailedDeployments(data.failedDeployments || []);
-        if (data.failedDeployments?.length > 0 && !selectedDeploymentId) {
-          setSelectedDeploymentId(data.failedDeployments[0].id);
+      if (depData && depData.failedDeployments) {
+        setFailedDeployments(depData.failedDeployments);
+        if (depData.failedDeployments.length > 0 && !selectedDeploymentId) {
+          setSelectedDeploymentId(depData.failedDeployments[0].id);
         }
       }
     } catch (err) {
-      console.error('Error fetching failure history:', err);
+      console.warn('Failure history notice:', err);
     } finally {
       setIsLoading(false);
     }

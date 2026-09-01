@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Activity,
   AlertOctagon,
@@ -30,6 +30,7 @@ import {
   X,
   Zap,
   ChevronRight,
+  ChevronDown,
   Filter,
 } from 'lucide-react';
 
@@ -113,6 +114,7 @@ interface NavigationTabsProps {
   predictiveAlertCount: number;
   activeWorkflowsCount: number;
   failedBuildCount?: number;
+  theme?: 'dark' | 'light';
 }
 
 export const NavigationTabs: React.FC<NavigationTabsProps> = ({
@@ -122,9 +124,9 @@ export const NavigationTabs: React.FC<NavigationTabsProps> = ({
   predictiveAlertCount,
   activeWorkflowsCount,
   failedBuildCount,
+  theme = 'dark',
 }) => {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isCategoryMenuOpen, setIsCategoryMenuOpen] = useState(false);
 
   // Grouping 34 specialized sub-tabs into 8 Parent Categories
   const parentGroups: ParentGroupDef[] = useMemo(
@@ -148,48 +150,46 @@ export const NavigationTabs: React.FC<NavigationTabsProps> = ({
         tabs: [
           {
             id: 'incidents',
-            label: 'Incident Hub & Timeline',
+            label: 'Incident Hub',
             shortLabel: 'Incident Hub',
             icon: Flame,
-            badge: issueCount > 0 ? `${issueCount} Issues` : 'Unified',
+            badge: issueCount > 0 ? `${issueCount}` : null,
             badgeColor: 'bg-rose-500/20 text-rose-300 border-rose-500/40',
-            description: 'Live incident triage, correlation engine, and automated runbook triggers',
+            description: 'Live incident triage, active alerts, and correlation engine',
           },
           {
             id: 'rca',
-            label: 'RCA & 1-Click Heal',
+            label: '1-Click Heal',
             shortLabel: '1-Click Heal',
             icon: AlertOctagon,
-            badge: 'Autonomous',
+            badge: 'Auto',
             badgeColor: 'bg-rose-500/20 text-rose-300 border-rose-500/40',
             description: 'Autonomous root cause analysis and instant one-click remediation actions',
           },
           {
             id: 'failure-history',
-            label: 'Failure History & RCA',
+            label: 'Failure History',
             shortLabel: 'Failure History',
             icon: ShieldAlert,
-            badge: 'Diff Analysis',
-            badgeColor: 'bg-rose-500/20 text-rose-300 border-rose-500/30',
-            description: 'Historic incident telemetry, blast radius graphs, and code diff mapping',
+            description: 'Historic incident telemetry and deployment diff mapping',
           },
           {
             id: 'postmortem',
-            label: 'Incident Post-Mortem',
-            shortLabel: 'Post-Mortem',
+            label: 'Post-Mortems',
+            shortLabel: 'Post-Mortems',
             icon: FileText,
-            badge: 'AI Generated',
+            badge: 'AI Draft',
             badgeColor: 'bg-purple-500/20 text-purple-300 border-purple-500/30',
-            description: 'Automated post-incident timeline generation, prevention measures & report export',
+            description: 'Automated post-incident timeline generation and prevention checklist',
           },
           {
             id: 'policies',
             label: 'Auto-Heal Policies',
             shortLabel: 'Policies',
             icon: ShieldCheck,
-            badge: '5 Active Rules',
+            badge: '5 Active',
             badgeColor: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
-            description: 'Configurable automated self-healing guardrails, circuit breakers, and thresholds',
+            description: 'Configurable automated self-healing guardrails and thresholds',
           },
         ],
       },
@@ -212,55 +212,53 @@ export const NavigationTabs: React.FC<NavigationTabsProps> = ({
         tabs: [
           {
             id: 'pipeline',
-            label: 'CI/CD & GitHub Actions',
+            label: 'CI/CD Pipelines',
             shortLabel: 'Pipelines',
             icon: GitBranch,
-            badge: activeWorkflowsCount > 0 ? `${activeWorkflowsCount} Run` : 'Live',
+            badge: activeWorkflowsCount > 0 ? `${activeWorkflowsCount}` : 'Live',
             badgeColor: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30',
             description: 'GitHub workflow pipeline stages, duration anomaly detector, and commit matrix',
           },
           {
             id: 'log-collector',
-            label: 'Go Log Ingestion Service',
-            shortLabel: 'Go Log Ingester',
+            label: 'Go Log Ingester',
+            shortLabel: 'Log Ingester',
             icon: Terminal,
-            badge: 'gRPC / Stream',
+            badge: 'Stream',
             badgeColor: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30',
             description: 'Ultra-low latency streaming log parser with zero-leak secret redaction',
           },
           {
             id: 'tech-stack',
-            label: 'Repo Tech Stack Discovery',
+            label: 'Repo Tech Stack',
             shortLabel: 'Tech Stack',
             icon: FileCode2,
-            badge: 'Auto-Detect',
-            badgeColor: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
-            description: 'Deep repository dependency mapping, runtime profiling, and dockerfile analysis',
+            description: 'Deep repository dependency mapping and dockerfile analysis',
           },
           {
             id: 'gitops',
-            label: 'GitOps & ArgoCD Sync',
+            label: 'GitOps ArgoCD',
             shortLabel: 'GitOps',
             icon: GitBranch,
-            badge: 'OutOfSync',
+            badge: 'Sync',
             badgeColor: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
             description: 'Declarative Kubernetes sync status, drift detection, and auto-sync triggers',
           },
           {
             id: 'canary',
-            label: 'Canary & Traffic Shift',
-            shortLabel: 'Canary Deploy',
+            label: 'Canary Deploy',
+            shortLabel: 'Canary',
             icon: Sliders,
-            badge: 'Step 2: 25%',
+            badge: '25%',
             badgeColor: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30',
-            description: 'Progressive delivery ingress management, canary error metrics, and rollback',
+            description: 'Automated canary progression and latency gate management',
           },
         ],
       },
       {
         id: 'k8s-infra',
         label: 'Kubernetes & Fleet',
-        shortLabel: 'K8s & Infra',
+        shortLabel: 'K8s Infra',
         icon: Boxes,
         color: 'blue',
         activeBg: 'bg-blue-500/10',
@@ -269,48 +267,42 @@ export const NavigationTabs: React.FC<NavigationTabsProps> = ({
         tabs: [
           {
             id: 'topology',
-            label: 'K8s Cluster Topology Map',
-            shortLabel: 'Cluster Map',
+            label: 'Cluster Topology Map',
+            shortLabel: 'Topology Map',
             icon: Boxes,
-            badge: '3 Clusters',
-            badgeColor: 'bg-blue-500/20 text-blue-300 border-blue-500/30',
-            description: 'Interactive node/pod topology visualizer with real-time health coloring',
+            description: 'Real-time node-to-pod visual graph with memory stress heatmaps',
           },
           {
             id: 'fleet',
-            label: 'Multi-Cluster Fleet Hub',
-            shortLabel: 'Multi-Cluster',
+            label: 'Multi-Cluster Fleet',
+            shortLabel: 'Fleet',
             icon: Globe,
-            badge: 'GCP + AWS',
+            badge: 'GCP/AWS',
             badgeColor: 'bg-blue-500/20 text-blue-300 border-blue-500/30',
-            description: 'Cross-cloud cluster management, federation status, and kubeconfig registry',
+            description: 'Cross-cloud unified Kubernetes management for GKE, EKS, AKS, and bare-metal',
           },
           {
             id: 'helm',
-            label: 'Helm Releases & CRDs',
-            shortLabel: 'Helm & CRDs',
+            label: 'Helm & CRDs',
+            shortLabel: 'Helm',
             icon: Package,
-            badge: 'v3.14',
-            badgeColor: 'bg-blue-500/20 text-blue-300 border-blue-500/30',
-            description: 'Installed Helm chart versions, CRD custom resource validators, and upgrades',
+            description: 'Helm release history, declarative values diffs, and CRD manifests',
           },
           {
             id: 'autoscaling',
-            label: 'KEDA Event Autoscaler',
-            shortLabel: 'KEDA Autoscaler',
+            label: 'KEDA Autoscaler',
+            shortLabel: 'Autoscaler',
             icon: TrendingUp,
-            badge: 'Scale to 0',
+            badge: 'KEDA',
             badgeColor: 'bg-purple-500/20 text-purple-300 border-purple-500/30',
-            description: 'Event-driven autoscaling triggers, Kafka/RabbitMQ metrics, and HPA status',
+            description: 'Event-driven auto-scaling with scale-to-zero queue listeners',
           },
           {
             id: 'specs',
-            label: 'Microservice Specs & Schema',
-            shortLabel: 'Service Specs',
+            label: 'Service Specs',
+            shortLabel: 'Specs',
             icon: FileCode2,
-            badge: 'OpenAPI',
-            badgeColor: 'bg-slate-500/20 text-slate-300 border-slate-500/30',
-            description: 'Service contracts, gRPC protobuf schemas, and OpenAPI endpoints index',
+            description: 'Microservice API contracts, endpoints, and health probe definitions',
           },
         ],
       },
@@ -326,61 +318,57 @@ export const NavigationTabs: React.FC<NavigationTabsProps> = ({
         getBadge: ({ predictiveAlertCount }) =>
           predictiveAlertCount > 0
             ? {
-                text: `${predictiveAlertCount} Radar`,
+                text: `${predictiveAlertCount} Alert`,
                 color: 'bg-amber-500/20 text-amber-300 border-amber-500/40 animate-pulse',
               }
             : null,
         tabs: [
           {
             id: 'traces',
-            label: 'OTel Distributed Traces & APM',
-            shortLabel: 'OTel Traces',
+            label: 'OTel Traces & APM',
+            shortLabel: 'Traces',
             icon: Activity,
-            badge: 'APM Live',
+            badge: 'Live',
             badgeColor: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30',
-            description: 'End-to-end distributed span waterfalls, microservice latency breakdown, and errors',
+            description: 'Distributed trace spans, eBPF flamegraphs, and latency waterfalls',
           },
           {
             id: 'profiler',
-            label: 'Microservice Language Profiler',
+            label: 'Language Profiler',
             shortLabel: 'Profiler',
             icon: Activity,
-            badge: 'Flamegraphs',
-            badgeColor: 'bg-orange-500/20 text-orange-300 border-orange-500/30',
-            description: 'In-flight CPU and heap flamegraphs for Go, Python, Node, and Rust workloads',
+            description: 'Continuous runtime CPU & heap memory profiling across microservices',
           },
           {
             id: 'predictive',
             label: 'Predictive OOM Radar',
-            shortLabel: 'OOM Radar',
+            shortLabel: 'Predictive OOM',
             icon: TrendingUp,
-            badge: predictiveAlertCount > 0 ? `${predictiveAlertCount} Warn` : 'Optimal',
+            badge: predictiveAlertCount > 0 ? `${predictiveAlertCount}` : null,
             badgeColor: 'bg-amber-500/20 text-amber-300 border-amber-500/40',
-            description: 'AI predictive slope detection alerting on memory leaks 20 minutes before OOMKill',
+            description: 'AI-driven time-to-exhaustion predictive memory leak radar',
           },
           {
             id: 'ebpf',
             label: 'eBPF Kernel Tracer',
-            shortLabel: 'eBPF Kernel',
+            shortLabel: 'eBPF Tracer',
             icon: Flame,
-            badge: 'Ring-Buffer',
-            badgeColor: 'bg-orange-500/20 text-orange-300 border-orange-500/30',
-            description: 'Kernel-space TCP drop detection, syscall profiling, and socket queue depth',
+            badge: 'Kernel',
+            badgeColor: 'bg-rose-500/20 text-rose-300 border-rose-500/30',
+            description: 'Deep socket, syscall, and packet drop telemetry without code instrumentation',
           },
           {
             id: 'logs',
-            label: 'Live Stream Logs & eBPF',
-            shortLabel: 'Live Logs',
+            label: 'Live Stream Logs',
+            shortLabel: 'Logs',
             icon: Terminal,
-            badge: 'Live Tail',
-            badgeColor: 'bg-slate-500/20 text-slate-300 border-slate-500/30',
-            description: 'Real-time multi-pod container log tailing with syntax highlighting and regex search',
+            description: 'Unified streaming logs with real-time severity filters and search',
           },
         ],
       },
       {
         id: 'security-zero-trust',
-        label: 'Security & Trust',
+        label: 'Security & Zero-Trust',
         shortLabel: 'Security',
         icon: Shield,
         color: 'emerald',
@@ -390,30 +378,30 @@ export const NavigationTabs: React.FC<NavigationTabsProps> = ({
         tabs: [
           {
             id: 'security',
-            label: 'Security, CVEs & Falco',
-            shortLabel: 'Vulnerabilities',
+            label: 'Vulnerabilities & CVE',
+            shortLabel: 'CVE Audit',
             icon: ShieldCheck,
-            badge: 'Trivy/Falco',
+            badge: 'Falco',
             badgeColor: 'bg-rose-500/20 text-rose-300 border-rose-500/30',
-            description: 'Runtime threat detection, container image vulnerabilities, and CIS benchmarks',
+            description: 'Trivy/Grype CVE vulnerability auditing, CIS benchmarks, and remediation diffs',
           },
           {
             id: 'vault',
-            label: 'Zero-Trust Vault & Secrets',
-            shortLabel: 'Vault Secrets',
+            label: 'Zero-Trust Vault',
+            shortLabel: 'Secrets Vault',
             icon: Lock,
-            badge: 'mTLS CSI',
+            badge: 'mTLS',
             badgeColor: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
-            description: 'Dynamic secret rotation, HashiCorp Vault CSI provider, and KMS encryption status',
+            description: 'Automated secret rotation, access revocation, and zero-trust credentials',
           },
           {
             id: 'mesh',
-            label: 'Service Mesh & Network Policies',
+            label: 'Service Mesh & mTLS',
             shortLabel: 'Service Mesh',
             icon: Network,
-            badge: 'mTLS Strict',
-            badgeColor: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
-            description: 'Istio/Cilium service mesh encryption, mutual TLS handshake, and ingress routing',
+            badge: '98% mTLS',
+            badgeColor: 'bg-blue-500/20 text-blue-300 border-blue-500/30',
+            description: 'Interactive Istio service mesh network topology and mTLS status',
           },
         ],
       },
@@ -429,39 +417,39 @@ export const NavigationTabs: React.FC<NavigationTabsProps> = ({
         tabs: [
           {
             id: 'slo',
-            label: 'SLO & Error Budget Burn',
-            shortLabel: 'SLO Burn',
+            label: 'SLO & Burn Rates',
+            shortLabel: 'SLO Budgets',
             icon: Gauge,
-            badge: '99.9% Target',
+            badge: '99.9%',
             badgeColor: 'bg-purple-500/20 text-purple-300 border-purple-500/30',
-            description: 'Service level objectives, burn rate alerts, and error budget exhaustion forecast',
+            description: 'Service level objective tracking, error budget burn rates, and freeze enforcement',
           },
           {
             id: 'alerts',
-            label: 'Alert Routing Integrations',
-            shortLabel: 'Alert Routing',
+            label: 'Alert Integrations',
+            shortLabel: 'Alerts Hub',
             icon: Bell,
-            badge: 'Slack / PD',
+            badge: 'PD/Slack',
             badgeColor: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
-            description: 'On-call schedule integrations, PagerDuty webhooks, Slack escalations, and silence rules',
+            description: 'PagerDuty, Slack, webhook integrations, and deduplication rules',
           },
           {
             id: 'finops',
-            label: 'FinOps & Cost Optimization',
-            shortLabel: 'FinOps Costs',
+            label: 'FinOps Cost Save',
+            shortLabel: 'FinOps Save',
             icon: DollarSign,
-            badge: '$860/mo Saved',
-            badgeColor: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30 font-bold',
-            description: 'Right-sizing recommendations, idle resource termination, and cloud bill breakdown',
+            badge: 'Save $860',
+            badgeColor: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
+            description: 'Kubecost namespace spend breakdowns, idle waste, and right-sizing suggestions',
           },
           {
             id: 'production-readiness',
-            label: 'Production & SaaS Hub',
-            shortLabel: 'Production Hub',
+            label: 'Production SaaS Hub',
+            shortLabel: 'SaaS Hub',
             icon: Server,
-            badge: 'RBAC & DB',
+            badge: 'Ready',
             badgeColor: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
-            description: 'Enterprise RBAC permissions, audit logging, multi-tenancy, and database backups',
+            description: 'Comprehensive 12-factor production readiness checklist and certification',
           },
         ],
       },
@@ -477,301 +465,178 @@ export const NavigationTabs: React.FC<NavigationTabsProps> = ({
         tabs: [
           {
             id: 'runbooks',
-            label: 'Automated Runbook Studio',
+            label: 'Runbook Studio',
             shortLabel: 'Runbooks',
             icon: BookOpen,
-            badge: 'Executable',
-            badgeColor: 'bg-purple-500/20 text-purple-300 border-purple-500/30',
-            description: 'Interactive and automated remediation runbooks with rollback step validation',
+            badge: '1-Click',
+            badgeColor: 'bg-blue-500/20 text-blue-300 border-blue-500/30',
+            description: 'Declarative automated remediation playbooks and runbook executor',
           },
           {
             id: 'chaos',
-            label: 'Chaos Engineering Sandbox',
-            shortLabel: 'Chaos Sandbox',
+            label: 'Chaos Sandbox',
+            shortLabel: 'Chaos Test',
             icon: Flame,
-            badge: 'Fault Inject',
+            badge: 'Test',
             badgeColor: 'bg-rose-500/20 text-rose-300 border-rose-500/30',
-            description: 'Simulated packet loss, pod kills, CPU spikes, and latency injection experiments',
+            description: 'Simulated network partition, pod kill, and CPU spike chaos tests',
           },
           {
             id: 'loadtest',
-            label: 'Load & Stress RPS Harness',
-            shortLabel: 'Load Testing',
+            label: 'Load RPS Harness',
+            shortLabel: 'Load Harness',
             icon: Zap,
-            badge: 'Stress RPS',
-            badgeColor: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30',
-            description: 'Synthetic high-volume traffic generator with p95/p99 latency tracking',
+            description: 'Continuous synthetic stress testing, ramp-up schedules, and response curves',
           },
           {
             id: 'dr',
-            label: 'Multi-Region Disaster Recovery',
-            shortLabel: 'Disaster Recovery',
+            label: 'Multi-Region DR',
+            shortLabel: 'DR Failover',
             icon: Shuffle,
-            badge: 'Active-Active',
-            badgeColor: 'bg-blue-500/20 text-blue-300 border-blue-500/30',
-            description: 'Cross-region failover automation, DNS traffic steering, and RPO/RTO verification',
+            badge: 'RTO 45s',
+            badgeColor: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30',
+            description: 'Multi-region failover automation and data synchronization health',
           },
         ],
       },
       {
         id: 'ai-engine',
         label: 'AI Copilot & Models',
-        shortLabel: 'AI Copilot',
+        shortLabel: 'AI Engine',
         icon: Sparkles,
-        color: 'purple',
-        activeBg: 'bg-purple-500/10',
-        activeBorder: 'border-purple-500/40 text-purple-300',
-        activeText: 'text-purple-400',
+        color: 'emerald',
+        activeBg: 'bg-emerald-500/10',
+        activeBorder: 'border-emerald-500/40 text-emerald-300',
+        activeText: 'text-emerald-400',
         tabs: [
           {
             id: 'copilot',
-            label: 'AI SRE Copilot & Assistant',
-            shortLabel: 'AI Copilot',
+            label: 'AI SRE Copilot',
+            shortLabel: 'SRE Copilot',
             icon: Sparkles,
-            badge: 'Multi-LLM',
-            badgeColor: 'bg-purple-500/20 text-purple-300 border-purple-500/30 animate-pulse',
-            description: 'Natural language SRE copilot for incident triage, kubectl generation, and root cause diagnosis',
+            badge: 'Copilot',
+            badgeColor: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
+            description: 'Chat assistant for telemetry diagnostics, root cause synthesis, and incident triage',
           },
           {
             id: 'model-switch',
             label: 'AI Key & Model Detector',
-            shortLabel: 'API Key & Models',
+            shortLabel: 'Model Switcher',
             icon: Cpu,
-            badge: 'Key Inspector',
-            badgeColor: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30 font-bold',
-            description: 'Paste API key, auto-detect available models, select engine from dropdown, and validate connection health',
+            badge: 'Key Inspect',
+            badgeColor: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30',
+            description: 'Dynamic AI engine switching between Gemini 3.7 Flash, Pro, and NVIDIA NIM',
           },
         ],
       },
     ],
-    [issueCount, predictiveAlertCount, activeWorkflowsCount]
+    [issueCount, predictiveAlertCount, activeWorkflowsCount, failedBuildCount]
   );
 
-  // Determine which parent category currently contains the activeTab
-  const currentParentGroup = useMemo(() => {
+  // Find the active parent category and active child page
+  const activeGroup = useMemo(() => {
     for (const group of parentGroups) {
       if (group.tabs.some((t) => t.id === activeTab)) {
         return group;
       }
     }
     return parentGroups[0];
-  }, [activeTab, parentGroups]);
+  }, [parentGroups, activeTab]);
 
-  // Selected parent group state (defaults to matching active tab's parent)
-  const [selectedParentId, setSelectedParentId] = useState<ParentGroupId>(
-    currentParentGroup.id
-  );
-
-  // Sync selected parent when activeTab changes externally
-  useEffect(() => {
-    setSelectedParentId(currentParentGroup.id);
-  }, [currentParentGroup.id]);
-
-  const activeGroup = useMemo(
-    () => parentGroups.find((g) => g.id === selectedParentId) || currentParentGroup,
-    [parentGroups, selectedParentId, currentParentGroup]
-  );
-
-  // All 34 tabs flattened for the fast search switcher
-  const allTabsFlattened = useMemo(() => {
-    return parentGroups.flatMap((group) =>
-      group.tabs.map((tab) => ({
-        ...tab,
-        parentLabel: group.label,
-        parentColor: group.color,
-      }))
-    );
-  }, [parentGroups]);
-
-  const filteredTabs = useMemo(() => {
-    if (!searchQuery.trim()) return [];
-    const q = searchQuery.toLowerCase();
-    return allTabsFlattened.filter(
-      (t) =>
-        t.label.toLowerCase().includes(q) ||
-        t.id.toLowerCase().includes(q) ||
-        t.parentLabel.toLowerCase().includes(q) ||
-        (t.description && t.description.toLowerCase().includes(q))
-    );
-  }, [searchQuery, allTabsFlattened]);
-
-  const handleSelectParent = (groupId: ParentGroupId) => {
-    setSelectedParentId(groupId);
-    const targetGroup = parentGroups.find((g) => g.id === groupId);
-    if (targetGroup && targetGroup.tabs.length > 0) {
-      // If activeTab is not already in this group, switch to the first tab of this group
-      if (!targetGroup.tabs.some((t) => t.id === activeTab)) {
-        onChangeTab(targetGroup.tabs[0].id);
-      }
+  const activeTabDef = useMemo(() => {
+    for (const group of parentGroups) {
+      const match = group.tabs.find((t) => t.id === activeTab);
+      if (match) return match;
     }
-  };
+    return activeGroup.tabs[0];
+  }, [parentGroups, activeGroup, activeTab]);
+
+  const isLight = theme === 'light';
+  const ParentIcon = activeGroup.icon;
+  const ActiveChildIcon = activeTabDef.icon;
 
   return (
-    <div className="bg-[#090b10] border-b border-[#161a26] sticky top-[57px] z-30 transition-all duration-200">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Tier 1: Parent Category Navigation Bar */}
-        <div className="flex items-center justify-between gap-2 pt-2.5 pb-2 border-b border-[#161a26]/80">
-          <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none py-0.5">
-            {parentGroups.map((group) => {
-              const Icon = group.icon;
-              const isParentActive = selectedParentId === group.id;
-              const isChildActive = group.tabs.some((t) => t.id === activeTab);
-              const badge = group.getBadge
-                ? group.getBadge({
-                    issueCount,
-                    predictiveAlertCount,
-                    activeWorkflowsCount,
-                    failedBuildCount,
-                  })
-                : null;
-
-              return (
-                <button
-                  key={group.id}
-                  id={`parent-tab-${group.id}`}
-                  onClick={() => handleSelectParent(group.id)}
-                  className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all duration-200 border relative cursor-pointer ${
-                    isParentActive
-                      ? 'bg-[#101726] text-white border-[#3b82f6]/40 shadow-sm shadow-blue-500/10'
-                      : isChildActive
-                      ? 'bg-[#0e241c] text-emerald-300 border-emerald-500/30'
-                      : 'text-slate-400 hover:text-slate-200 hover:bg-[#121622] border-transparent'
-                  }`}
-                  title={`${group.label} (${group.tabs.length} modules)`}
-                >
-                  <Icon
-                    className={`w-4 h-4 transition-colors ${
-                      isParentActive
-                        ? 'text-blue-400'
-                        : isChildActive
-                        ? 'text-emerald-400'
-                        : 'text-slate-400'
-                    }`}
-                  />
-                  <span>{group.label}</span>
-
-                  {/* Sub-tab count badge */}
-                  <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-md bg-slate-800/80 text-slate-300 font-semibold">
-                    {group.tabs.length}
-                  </span>
-
-                  {/* Dynamic Alert Badge */}
-                  {badge && (
-                    <span
-                      className={`px-1.5 py-0.2 rounded-full text-[9px] font-extrabold ${badge.color}`}
-                    >
-                      {badge.text}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Quick Search & Switcher Button */}
-          <div className="relative shrink-0">
+    <div
+      className={`border-b transition-colors ${
+        isLight
+          ? 'bg-slate-50 border-slate-200 text-slate-800'
+          : 'bg-[#0b0e17] border-[#161a26] text-white'
+      }`}
+    >
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          {/* Breadcrumb Context & Category Dropdown */}
+          <div className="flex items-center gap-2 relative">
             <button
-              onClick={() => setIsSearchOpen(!isSearchOpen)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
-                isSearchOpen
-                  ? 'bg-blue-600 text-white border-blue-500'
-                  : 'bg-[#121622] text-slate-300 border-[#242b3d] hover:border-slate-600 hover:text-white'
+              type="button"
+              onClick={() => setIsCategoryMenuOpen(!isCategoryMenuOpen)}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-bold transition-colors cursor-pointer select-none ${
+                isLight
+                  ? 'bg-white border-slate-300 text-slate-700 hover:bg-slate-100 hover:text-slate-900'
+                  : 'bg-[#121622] border-[#222a3d] text-slate-300 hover:bg-[#181e2e] hover:text-white'
               }`}
-              title="Quickly search all 34 tabs (Cmd+K)"
+              title="Click to switch category"
             >
-              <Search className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Jump to Module</span>
-              <kbd className="hidden md:inline-block ml-1 px-1.5 py-0.5 text-[9px] font-mono rounded bg-black/40 border border-slate-700 text-slate-400">
-                34 tabs
-              </kbd>
+              <ParentIcon className="w-3.5 h-3.5 text-emerald-400" />
+              <span>{activeGroup.label}</span>
+              <ChevronDown className="w-3 h-3 text-slate-400" />
             </button>
 
-            {/* Quick Search Dropdown Modal */}
-            {isSearchOpen && (
-              <div className="absolute right-0 top-full mt-2 w-80 sm:w-96 bg-[#0c1017] border border-[#242b3d] rounded-2xl shadow-2xl z-50 p-3 animate-in fade-in slide-in-from-top-2 duration-150">
-                <div className="flex items-center gap-2 px-3 py-2 bg-[#141a29] rounded-xl border border-slate-800 mb-2">
-                  <Search className="w-4 h-4 text-slate-400 shrink-0" />
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search all 34 modules (e.g., eBPF, Vault, KEDA)..."
-                    autoFocus
-                    className="w-full bg-transparent text-xs text-white placeholder-slate-500 focus:outline-none"
-                  />
-                  {searchQuery && (
+            {/* Category Dropdown Popover */}
+            {isCategoryMenuOpen && (
+              <div
+                className={`absolute top-full left-0 mt-1.5 w-64 rounded-xl border shadow-2xl p-2 z-50 space-y-1 ${
+                  isLight
+                    ? 'bg-white border-slate-200 text-slate-900'
+                    : 'bg-[#10131c] border-[#22293a] text-white'
+                }`}
+              >
+                <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500 px-2 py-1">
+                  Switch Module Category
+                </div>
+                {parentGroups.map((group) => {
+                  const GIcon = group.icon;
+                  const isCurrent = group.id === activeGroup.id;
+                  return (
                     <button
-                      onClick={() => setSearchQuery('')}
-                      className="text-slate-400 hover:text-white"
+                      key={group.id}
+                      type="button"
+                      onClick={() => {
+                        setIsCategoryMenuOpen(false);
+                        onChangeTab(group.tabs[0].id);
+                      }}
+                      className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors text-left cursor-pointer ${
+                        isCurrent
+                          ? 'bg-emerald-500/20 text-emerald-400 font-bold'
+                          : isLight
+                          ? 'text-slate-700 hover:bg-slate-100'
+                          : 'text-slate-300 hover:bg-[#161d2c] hover:text-white'
+                      }`}
                     >
-                      <X className="w-3.5 h-3.5" />
+                      <div className="flex items-center gap-2">
+                        <GIcon className="w-3.5 h-3.5 text-slate-400" />
+                        <span>{group.label}</span>
+                      </div>
+                      <span className="text-[10px] text-slate-500 font-mono">
+                        {group.tabs.length}
+                      </span>
                     </button>
-                  )}
-                </div>
-
-                <div className="max-h-72 overflow-y-auto space-y-1 custom-scrollbar">
-                  {(searchQuery ? filteredTabs : allTabsFlattened).map((item) => {
-                    const Icon = item.icon;
-                    const isSelected = activeTab === item.id;
-                    return (
-                      <button
-                        key={item.id}
-                        onClick={() => {
-                          onChangeTab(item.id);
-                          setIsSearchOpen(false);
-                          setSearchQuery('');
-                        }}
-                        className={`w-full flex items-center justify-between p-2 rounded-xl text-left transition-all ${
-                          isSelected
-                            ? 'bg-emerald-500/15 border border-emerald-500/30 text-emerald-300'
-                            : 'hover:bg-[#141a29] text-slate-300'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <div
-                            className={`p-1.5 rounded-lg ${
-                              isSelected
-                                ? 'bg-emerald-500/20 text-emerald-400'
-                                : 'bg-slate-800/80 text-slate-400'
-                            }`}
-                          >
-                            <Icon className="w-3.5 h-3.5" />
-                          </div>
-                          <div className="truncate">
-                            <div className="text-xs font-bold truncate flex items-center gap-1.5">
-                              <span>{item.label}</span>
-                              {item.badge && (
-                                <span className="px-1.5 py-0.2 rounded-full text-[9px] bg-slate-800 text-slate-300 border border-slate-700">
-                                  {item.badge}
-                                </span>
-                              )}
-                            </div>
-                            <div className="text-[10px] text-slate-500 truncate">
-                              {item.parentLabel}
-                            </div>
-                          </div>
-                        </div>
-                        <ChevronRight className="w-3.5 h-3.5 text-slate-600 shrink-0 ml-2" />
-                      </button>
-                    );
-                  })}
-                </div>
+                  );
+                })}
               </div>
             )}
-          </div>
-        </div>
 
-        {/* Tier 2: Sub-Tabs for the Selected Parent Category */}
-        <div className="flex items-center justify-between gap-3 py-2 overflow-x-auto scrollbar-none">
-          <div className="flex items-center gap-1.5 min-w-max">
-            {/* Category Indicator Tag */}
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-900/90 border border-slate-800 text-[10px] font-bold text-slate-400 mr-1 select-none">
-              <span className="w-1.5 h-1.5 rounded-full bg-blue-400"></span>
-              <span className="uppercase tracking-wider font-mono">{activeGroup.shortLabel || activeGroup.label}</span>
-              <ChevronRight className="w-3 h-3 text-slate-600" />
+            <ChevronRight className="w-3.5 h-3.5 text-slate-500" />
+
+            {/* Active Child Page Breadcrumb Label */}
+            <div className="flex items-center gap-1.5 text-xs font-extrabold text-emerald-400 font-display">
+              <ActiveChildIcon className="w-3.5 h-3.5" />
+              <span>{activeTabDef.label}</span>
             </div>
+          </div>
 
-            {/* Sub-tabs list */}
+          {/* Sibling Child Pages Chips (Horizontal Clean Quick-Switch) */}
+          <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none py-0.5 max-w-full">
             {activeGroup.tabs.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
@@ -779,27 +644,32 @@ export const NavigationTabs: React.FC<NavigationTabsProps> = ({
               return (
                 <button
                   key={tab.id}
+                  type="button"
                   id={`sub-tab-${tab.id}`}
                   onClick={() => onChangeTab(tab.id)}
-                  className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all duration-200 border relative cursor-pointer group ${
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition-all duration-150 border cursor-pointer ${
                     isActive
-                      ? 'bg-[#0e241c] text-[#10b981] border-[#10b981]/50 shadow-sm shadow-emerald-500/15'
-                      : 'text-slate-400 hover:text-slate-200 hover:bg-[#121622] border-slate-800/60'
+                      ? isLight
+                        ? 'bg-emerald-100 text-emerald-900 border-emerald-400 font-bold shadow-xs'
+                        : 'bg-[#0e241c] text-[#10b981] font-bold border-[#10b981]/50 shadow-xs shadow-emerald-500/15'
+                      : isLight
+                      ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/70 border-slate-200'
+                      : 'text-slate-400 hover:text-slate-200 hover:bg-[#121622] border-slate-800/80'
                   }`}
                   title={tab.description || tab.label}
                 >
                   <Icon
                     className={`w-3.5 h-3.5 transition-colors ${
-                      isActive ? 'text-[#10b981]' : 'text-slate-400 group-hover:text-slate-300'
+                      isActive ? 'text-[#10b981]' : 'text-slate-400'
                     }`}
                   />
-                  <span>{tab.label}</span>
+                  <span>{tab.shortLabel || tab.label}</span>
                   {tab.badge && (
                     <span
                       className={`px-1.5 py-0.2 rounded-full text-[9px] font-extrabold ${
                         isActive
-                          ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                          : tab.badgeColor || 'bg-slate-800 text-slate-300'
+                          ? 'bg-emerald-500/20 text-emerald-300'
+                          : tab.badgeColor || (isLight ? 'bg-slate-200 text-slate-600' : 'bg-slate-800 text-slate-400')
                       }`}
                     >
                       {tab.badge}

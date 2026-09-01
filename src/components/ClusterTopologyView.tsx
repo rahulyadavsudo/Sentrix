@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { K8sNamespace, K8sNode, K8sPod } from '../types';
 import { NodeDetailsDrawer } from './NodeDetailsDrawer';
+import { K8sManifestScanner } from './K8sManifestScanner';
 
 interface ClusterTopologyViewProps {
   nodes: K8sNode[];
@@ -122,6 +123,9 @@ export const ClusterTopologyView: React.FC<ClusterTopologyViewProps> = ({
 
   return (
     <div className="space-y-6">
+      {/* Repository Kubernetes Manifests & Error Scanner */}
+      <K8sManifestScanner onShowToast={onShowToast} />
+
       {/* Kubernetes Nodes Infrastructure Layer with Real-Time Heatmap Overlay */}
       <div className="bg-[#0e0e11] border border-white/10 rounded-2xl p-5 shadow-xl space-y-4">
         {/* Heatmap Control & Infrastructure Header */}

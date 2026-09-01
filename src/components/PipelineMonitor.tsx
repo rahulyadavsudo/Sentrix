@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   AlertCircle,
   AlertOctagon,
@@ -6,12 +6,17 @@ import {
   ArrowRight,
   Bot,
   Bug,
+  Check,
   CheckCircle,
   CheckCircle2,
+  ChevronDown,
+  ChevronRight,
   Clock,
   Code2,
   Copy,
   ExternalLink,
+  FileCode,
+  Filter,
   Flame,
   GitBranch,
   GitCommit,
@@ -24,10 +29,13 @@ import {
   Lightbulb,
   Link,
   Play,
+  Radio,
   RefreshCw,
   Search,
+  Shield,
   ShieldAlert,
   ShieldCheck,
+  SlidersHorizontal,
   Sparkles,
   Terminal,
   Trash2,
@@ -36,7 +44,9 @@ import {
   XCircle,
   Zap,
 } from 'lucide-react';
-import { BuildFailureAiDiagnosis, CommitActivity, GitHubRepo, WorkflowRun } from '../types';
+import { BuildFailureAiDiagnosis, CommitActivity, GitHubRepo, WorkflowRun, PipelineErrorDetail, PipelineStep } from '../types';
+import { GitHubWorkflowInspector } from './GitHubWorkflowInspector';
+import { PipelineRunnerConsole } from './PipelineRunnerConsole';
 
 interface PipelineMonitorProps {
   repo: GitHubRepo | null;
@@ -49,6 +59,7 @@ interface PipelineMonitorProps {
   onDisconnectRepo?: () => Promise<boolean>;
   onNavigateToFailures?: () => void;
   onNavigateToTechStack?: () => void;
+  onNavigateToGoIngestion?: () => void;
 }
 
 export const PipelineMonitor: React.FC<PipelineMonitorProps> = ({
@@ -62,10 +73,13 @@ export const PipelineMonitor: React.FC<PipelineMonitorProps> = ({
   onDisconnectRepo,
   onNavigateToFailures,
   onNavigateToTechStack,
+  onNavigateToGoIngestion,
 }) => {
   const [selectedRunId, setSelectedRunId] = useState<string>(
     workflowRuns[0]?.id || ''
   );
+  const [selectedStep, setSelectedStep] = useState<PipelineStep | null>(null);
+  const [isSyncingLiveLogs, setIsSyncingLiveLogs] = useState(false);
   const [selectedStepLogs, setSelectedStepLogs] = useState<{
     stepName: string;
     logs: string[];
@@ -103,6 +117,14 @@ export const PipelineMonitor: React.FC<PipelineMonitorProps> = ({
   const [copiedCodeId, setCopiedCodeId] = useState<string | null>(null);
   const [remediatingRunId, setRemediatingRunId] = useState<string | null>(null);
   const [remediationMsg, setRemediationMsg] = useState<string | null>(null);
+
+  // Multi-Error Matrix & Diagnostics state
+  const [selectedErrorCategory, setSelectedErrorCategory] = useState<string>('all');
+  const [errorSearchTerm, setErrorSearchTerm] = useState<string>('');
+  const [expandedErrorId, setExpandedErrorId] = useState<string | null>(null);
+  const [selectedTargetedErrorId, setSelectedTargetedErrorId] = useState<string | null>(null);
+  const [rawLogSearchQuery, setRawLogSearchQuery] = useState<string>('');
+  const [showAllRawLogs, setShowAllRawLogs] = useState<boolean>(false);
 
   // Synchronize default targetService and selectedRunId when repo or workflowRuns update
   useEffect(() => {
@@ -217,14 +239,146 @@ export const PipelineMonitor: React.FC<PipelineMonitorProps> = ({
   const selectedRun =
     workflowRuns.find((r) => r.id === selectedRunId) || workflowRuns[0] || null;
 
+  // Comprehensive helper to extract file, line, and column from error lines and stack frames
+  const extractFileAndLineInfo = (text: string): { fileLocation?: string; lineNumber?: number; columnNumber?: number } => {
+    if (!text) return {};
+    // 1. Python: File "app.py", line 42, in test_fn
+    const pyMatch = text.match(/File\s+["']([^"']+\.[a-zA-Z0-9]+)["'],\s+line\s+(\d+)/i);
+    if (pyMatch) {
+      return { fileLocation: pyMatch[1], lineNumber: parseInt(pyMatch[2], 10) };
+    }
+    // 2. Rust/Cargo: --> src/main.rs:18:5
+    const rustMatch = text.match(/-->\s+([a-zA-Z0-9_\-\.\/]+\.[a-zA-Z0-9]+):(\d+)(?::(\d+))?/);
+    if (rustMatch) {
+      return {
+        fileLocation: rustMatch[1],
+        lineNumber: parseInt(rustMatch[2], 10),
+        columnNumber: rustMatch[3] ? parseInt(rustMatch[3], 10) : undefined,
+      };
+    }
+    // 3. Stack trace: at Object.<anonymous> (/app/src/handlers/auth.ts:89:12)
+    const stackMatch = text.match(/at\s+(?:[^\(\n]*\()?(?:[a-zA-Z]:[\\\/]|\/)?([a-zA-Z0-9_\-\.\/]+\.(?:ts|tsx|js|jsx|rs|go|py|java|c|cpp|h|json|yaml|yml|sql|sh)):(\d+)(?::(\d+))?\)?/i);
+    if (stackMatch) {
+      return {
+        fileLocation: stackMatch[1],
+        lineNumber: parseInt(stackMatch[2], 10),
+        columnNumber: stackMatch[3] ? parseInt(stackMatch[3], 10) : undefined,
+      };
+    }
+    // 4. Standard path:line:col or path(line,col)
+    const stdMatch = text.match(/(?:^|[\s"'`\(\[])([a-zA-Z0-9_\-\.\/]+\.(?:ts|tsx|js|jsx|rs|go|py|java|c|cpp|h|json|yaml|yml|sql|sh|rb|php|proto|toml|Dockerfile))(?::(\d+)(?::(\d+))?|\((\d+),(\d+)\))?/i);
+    if (stdMatch && stdMatch[1] && !stdMatch[1].startsWith('http://') && !stdMatch[1].startsWith('https://')) {
+      const fileLocation = stdMatch[1];
+      let lineNumber: number | undefined = undefined;
+      let columnNumber: number | undefined = undefined;
+      if (stdMatch[2]) {
+        lineNumber = parseInt(stdMatch[2], 10);
+        if (stdMatch[3]) columnNumber = parseInt(stdMatch[3], 10);
+      } else if (stdMatch[4]) {
+        lineNumber = parseInt(stdMatch[4], 10);
+        if (stdMatch[5]) columnNumber = parseInt(stdMatch[5], 10);
+      }
+      return { fileLocation, lineNumber, columnNumber };
+    }
+    return {};
+  };
+
+  // Memoized All Errors parsing and normalization from selectedRun
+  const runAllErrors: PipelineErrorDetail[] = useMemo(() => {
+    if (!selectedRun) return [];
+    if (selectedRun.allErrors && selectedRun.allErrors.length > 0) {
+      return selectedRun.allErrors.map((err, idx) => {
+        if (!err.fileLocation) {
+          const extracted = extractFileAndLineInfo(err.errorLine || '');
+          return {
+            ...err,
+            id: err.id || `err-${selectedRun.id}-${idx}`,
+            fileLocation: extracted.fileLocation || err.fileLocation,
+            lineNumber: extracted.lineNumber || err.lineNumber,
+            columnNumber: extracted.columnNumber || err.columnNumber,
+          };
+        }
+        return {
+          ...err,
+          id: err.id || `err-${selectedRun.id}-${idx}`,
+        };
+      });
+    }
+    if (selectedRun.errorLogs && selectedRun.errorLogs.length > 0) {
+      return selectedRun.errorLogs.map((l, idx) => {
+        let cat: PipelineErrorDetail['category'] = 'EXIT_CODE';
+        if (/TS\d{4}|SyntaxError|error TS|TypeError|ReferenceError|cannot find module|compile error/i.test(l)) cat = 'COMPILER';
+        else if (/FAIL|AssertionError|Expected|Received|assertion failed|--- FAIL:|Test failed/i.test(l)) cat = 'TEST_ASSERTION';
+        else if (/eslint|prettier|golangci-lint|warning/i.test(l)) cat = 'LINTER';
+        else if (/E404|npm ERR!|go: missing|pip error|Could not find a version|package .* not found/i.test(l)) cat = 'DEPENDENCY';
+        else if (/trivy|HIGH|CRITICAL|vulnerability|CVE-/i.test(l)) cat = 'SECURITY';
+        else if (/panic:|fatal error:|SIGSEGV|NullPointerException|unhandled rejection/i.test(l)) cat = 'RUNTIME_PANIC';
+
+        const fileInfo = extractFileAndLineInfo(l);
+        return {
+          id: `err-auto-${selectedRun.id}-${idx}`,
+          stageName: selectedRun.workflowName,
+          stepName: selectedRun.failedStepName || 'Build Step',
+          category: cat,
+          errorLine: l,
+          fileLocation: fileInfo.fileLocation,
+          lineNumber: fileInfo.lineNumber,
+          columnNumber: fileInfo.columnNumber,
+        };
+      });
+    }
+    return [
+      {
+        id: `err-default-${selectedRun.id}`,
+        stageName: selectedRun.workflowName,
+        stepName: selectedRun.failedStepName || 'Pipeline Execution',
+        category: 'EXIT_CODE',
+        errorLine: selectedRun.failureReason || 'Process exited with non-zero exit code 1',
+      },
+    ];
+  }, [selectedRun]);
+
+  const categoryCounts = useMemo(() => {
+    const counts: Record<string, number> = { all: runAllErrors.length };
+    runAllErrors.forEach((e) => {
+      counts[e.category] = (counts[e.category] || 0) + 1;
+    });
+    return counts;
+  }, [runAllErrors]);
+
+  const filteredErrors = useMemo(() => {
+    return runAllErrors.filter((err) => {
+      const matchCategory = selectedErrorCategory === 'all' || err.category === selectedErrorCategory;
+      const matchSearch =
+        !errorSearchTerm.trim() ||
+        err.errorLine.toLowerCase().includes(errorSearchTerm.toLowerCase()) ||
+        (err.stepName && err.stepName.toLowerCase().includes(errorSearchTerm.toLowerCase())) ||
+        (err.fileLocation && err.fileLocation.toLowerCase().includes(errorSearchTerm.toLowerCase())) ||
+        (err.fullMessage && err.fullMessage.toLowerCase().includes(errorSearchTerm.toLowerCase()));
+      return matchCategory && matchSearch;
+    });
+  }, [runAllErrors, selectedErrorCategory, errorSearchTerm]);
+
+  const filteredRawLogs = useMemo(() => {
+    if (!selectedRun || !selectedRun.errorLogs) return [];
+    if (!rawLogSearchQuery.trim()) return selectedRun.errorLogs;
+    return selectedRun.errorLogs.filter((log) =>
+      log.toLowerCase().includes(rawLogSearchQuery.toLowerCase())
+    );
+  }, [selectedRun, rawLogSearchQuery]);
+
   const copyToClipboard = (text: string, id: string) => {
     navigator.clipboard.writeText(text);
     setCopiedCodeId(id);
     setTimeout(() => setCopiedCodeId(null), 2000);
   };
 
-  const handleFetchAiBuildDiagnosis = async (run: WorkflowRun) => {
-    setLoadingAiMap((prev) => ({ ...prev, [run.id]: true }));
+  const handleFetchAiBuildDiagnosis = async (run: WorkflowRun, targetedErr?: PipelineErrorDetail) => {
+    const targetKey = targetedErr ? `${run.id}-${targetedErr.id}` : run.id;
+    setLoadingAiMap((prev) => ({ ...prev, [run.id]: true, [targetKey]: true }));
+    if (targetedErr) {
+      setSelectedTargetedErrorId(targetedErr.id);
+    }
     try {
       const res = await fetch('/api/ai/diagnose-build-failure', {
         method: 'POST',
@@ -233,19 +387,28 @@ export const PipelineMonitor: React.FC<PipelineMonitorProps> = ({
           repo: run.repo,
           branch: run.branch,
           commitSha: run.commitSha,
-          failedStepName: run.failedStepName || 'Build Step',
-          errorLogs: run.errorLogs || [run.failureReason || 'Non-zero exit code'],
+          failedStepName: targetedErr?.stepName || run.failedStepName || 'Build Step',
+          errorLogs: targetedErr
+            ? [targetedErr.errorLine, ...(targetedErr.stackSnippet || [])]
+            : (run.errorLogs || [run.failureReason || 'Non-zero exit code']),
           commitMessage: run.commitMessage,
+          targetedError: targetedErr,
         }),
       });
       if (res.ok) {
         const data = await res.json();
-        setAiDiagnosisMap((prev) => ({ ...prev, [run.id]: data.diagnosis }));
+        setAiDiagnosisMap((prev) => ({
+          ...prev,
+          [run.id]: data.diagnosis,
+          ...(targetedErr ? { [targetedErr.id]: data.diagnosis } : {}),
+        }));
+        // Ensure the RCA Copilot section is opened
+        setShowCopilotRCA((prev) => ({ ...prev, [run.id]: true }));
       }
     } catch (err) {
       console.error('Error querying AI diagnosis:', err);
     } finally {
-      setLoadingAiMap((prev) => ({ ...prev, [run.id]: false }));
+      setLoadingAiMap((prev) => ({ ...prev, [run.id]: false, [targetKey]: false }));
     }
   };
 
@@ -300,6 +463,42 @@ export const PipelineMonitor: React.FC<PipelineMonitorProps> = ({
     }
   };
 
+  const handleSyncLiveLogs = async () => {
+    if (!selectedRun) return;
+    setIsSyncingLiveLogs(true);
+    try {
+      const activeRepoName = (repo?.owner && repo?.name) ? `${repo.owner}/${repo.name}` : (customRepoUrl || 'kubernetes/k8s-ai-copilot-engine');
+      const res = await fetch('/api/github/fetch-live-error', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          repoUrl: activeRepoName,
+          token: githubToken || undefined,
+          runId: selectedRun.id,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.rawLogsPreview && data.rawLogsPreview.length > 0) {
+          selectedRun.errorLogs = data.rawLogsPreview;
+        }
+        if (data.allErrors && data.allErrors.length > 0) {
+          selectedRun.allErrors = data.allErrors;
+        }
+        if (data.aiDiagnosis) {
+          setAiDiagnosisMap((prev) => ({ ...prev, [selectedRun.id]: data.aiDiagnosis }));
+        }
+      }
+      if (onSyncRepo) {
+        await onSyncRepo();
+      }
+    } catch (err) {
+      console.warn('Could not sync live runner logs:', err);
+    } finally {
+      setIsSyncingLiveLogs(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* GitHub Repository Header & Activity Card */}
@@ -312,8 +511,8 @@ export const PipelineMonitor: React.FC<PipelineMonitorProps> = ({
             <div>
               <div className="flex items-center gap-3 flex-wrap">
                 <h2 className="text-lg font-extrabold text-white tracking-tight flex items-center gap-2">
-                  <span>{repo ? `${repo.owner}/${repo.name}` : 'GitHub Repository Pipeline'}</span>
-                  {repo && (
+                  <span>{(repo?.owner && repo?.name) ? `${repo.owner}/${repo.name}` : 'GitHub Repository Pipeline'}</span>
+                  {repo?.owner && repo?.name && (
                     <a
                       href={`https://github.com/${repo.owner}/${repo.name}`}
                       target="_blank"
@@ -647,6 +846,9 @@ export const PipelineMonitor: React.FC<PipelineMonitorProps> = ({
         )}
       </div>
 
+      {/* Discovered GitHub Actions Workflows from Repository */}
+      <GitHubWorkflowInspector onTriggerRun={onTriggerRun} />
+
       {/* Main Grid: Pipeline Inspector & Live Activity */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left 2 Cols: Pipeline Stage Flow & Diagnostic Logs */}
@@ -705,22 +907,26 @@ export const PipelineMonitor: React.FC<PipelineMonitorProps> = ({
                 </div>
               </div>
 
-              {/* PROMINENT FAILURE DIAGNOSTICS & ROOT CAUSE ANALYSIS (Visible on Failed Runs) */}
+              {/* PROMINENT FAILURE DIAGNOSTICS & MULTI-ERROR MATRIX (Visible on Failed Runs) */}
               {(selectedRun.status === 'failed' || selectedRun.conclusion === 'failure') && (
-                <div className="p-5 rounded-2xl bg-rose-950/25 border border-rose-500/40 backdrop-blur-md space-y-4 animate-fadeIn shadow-lg shadow-rose-950/30">
-                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 pb-3 border-b border-rose-500/20">
-                    <div className="flex items-start gap-2.5">
-                      <div className="p-2 rounded-xl bg-rose-500/20 text-rose-400 mt-0.5 border border-rose-500/30">
+                <div className="p-5 rounded-2xl bg-rose-950/30 border border-rose-500/40 backdrop-blur-md space-y-5 animate-fadeIn shadow-xl shadow-rose-950/40">
+                  {/* Top Failure Header */}
+                  <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-rose-500/25">
+                    <div className="flex items-start gap-3">
+                      <div className="p-2.5 rounded-xl bg-rose-500/20 text-rose-400 mt-0.5 border border-rose-500/40 shadow-inner">
                         <ShieldAlert className="w-5 h-5" />
                       </div>
                       <div>
                         <h4 className="text-xs font-bold text-rose-300 uppercase tracking-wider flex items-center gap-2 flex-wrap">
                           <span>GitHub Actions Pipeline Build Failed</span>
-                          <span className="px-2 py-0.5 rounded-md bg-rose-500/20 text-rose-200 text-[10px] font-mono border border-rose-500/30">
+                          <span className="px-2 py-0.5 rounded-md bg-rose-500/30 text-rose-200 text-[10px] font-mono border border-rose-500/40">
                             Exit Code 1
                           </span>
-                          <span className="px-2 py-0.5 rounded-md bg-slate-900/80 border border-white/10 text-slate-300 text-[10px] font-mono">
-                            {selectedRun.failedStepName || 'Build Step'}
+                          <span className="px-2.5 py-0.5 rounded-md bg-rose-500/20 text-rose-300 text-[10px] font-bold border border-rose-500/40 font-mono">
+                            {runAllErrors.length} {runAllErrors.length === 1 ? 'Error Extracted' : 'Errors Extracted'}
+                          </span>
+                          <span className="px-2 py-0.5 rounded-md bg-slate-900/90 border border-white/10 text-slate-300 text-[10px] font-mono">
+                            Step: {selectedRun.failedStepName || 'Build & Test'}
                           </span>
                         </h4>
                         <p className="text-xs text-rose-200 mt-1 font-semibold">
@@ -741,8 +947,8 @@ export const PipelineMonitor: React.FC<PipelineMonitorProps> = ({
                           {loadingAiMap[selectedRun.id]
                             ? 'Diagnosing with Gemini AI...'
                             : aiDiagnosisMap[selectedRun.id]
-                            ? 'Re-Diagnose with AI'
-                            : 'Diagnose Failure with AI'}
+                            ? 'Re-Diagnose All Errors'
+                            : 'Diagnose with Gemini AI'}
                         </span>
                       </button>
 
@@ -759,6 +965,17 @@ export const PipelineMonitor: React.FC<PipelineMonitorProps> = ({
                         <span>1-Click Auto-Fix & Re-run</span>
                       </button>
 
+                      {onNavigateToGoIngestion && (
+                        <button
+                          onClick={onNavigateToGoIngestion}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-950/80 hover:bg-indigo-900/90 text-indigo-300 border border-indigo-500/40 backdrop-blur-md text-xs font-bold transition-all"
+                          title="Open Go Log Ingestion Stream Engine"
+                        >
+                          <Radio className="w-3.5 h-3.5 text-indigo-400" />
+                          <span>Go Log Ingestor</span>
+                        </button>
+                      )}
+
                       {onNavigateToFailures && (
                         <button
                           onClick={onNavigateToFailures}
@@ -773,25 +990,278 @@ export const PipelineMonitor: React.FC<PipelineMonitorProps> = ({
                   </div>
 
                   {remediationMsg && (
-                    <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-lg text-xs text-emerald-300 flex items-center gap-2 animate-fadeIn">
+                    <div className="p-3 bg-emerald-500/15 border border-emerald-500/40 rounded-xl text-xs text-emerald-300 flex items-center gap-2 animate-fadeIn">
                       <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
                       <span>{remediationMsg}</span>
                     </div>
                   )}
 
-                  {/* 1. EXACT ERROR EXTRACTED */}
-                  <div className="space-y-1.5">
-                    <div className="flex items-center gap-2 text-[11px] font-bold text-rose-400 uppercase tracking-wider">
-                      <Bug className="w-3.5 h-3.5" />
-                      <span>1. Exact Error Extracted from Build Logs</span>
+                  {/* 1. ALL EXTRACTED ERRORS MATRIX (Multi-Error Breakdown) */}
+                  <div className="p-4 rounded-xl bg-slate-950/90 border border-rose-500/30 space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800/80 pb-3">
+                      <div className="flex items-center gap-2 text-xs font-bold text-rose-300">
+                        <Bug className="w-4 h-4 text-rose-400" />
+                        <span>All Extracted Pipeline Errors ({runAllErrors.length} Total Detected)</span>
+                      </div>
+
+                      {/* Search in Errors */}
+                      <div className="relative">
+                        <Search className="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                        <input
+                          type="text"
+                          value={errorSearchTerm}
+                          onChange={(e) => setErrorSearchTerm(e.target.value)}
+                          placeholder="Filter extracted errors..."
+                          className="pl-8 pr-3 py-1 rounded-lg bg-slate-900 border border-slate-700 text-xs text-slate-200 focus:outline-none focus:border-rose-500 w-48 sm:w-56"
+                        />
+                      </div>
                     </div>
-                    <div className="p-3 rounded-lg bg-slate-950 border border-rose-500/30 font-mono text-xs text-rose-200 overflow-x-auto">
-                      {aiDiagnosisMap[selectedRun.id]?.exactError ||
-                        selectedRun.errorLogs?.[0] ||
-                        selectedRun.failureReason ||
-                        `Error in step "${selectedRun.failedStepName || 'Workflow Execution'}": non-zero exit code returned.`}
+
+                    {/* Category Filter Chips */}
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <button
+                        onClick={() => setSelectedErrorCategory('all')}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-colors ${
+                          selectedErrorCategory === 'all'
+                            ? 'bg-rose-600 text-white shadow-sm'
+                            : 'bg-slate-900 hover:bg-slate-800 text-slate-400 border border-slate-800'
+                        }`}
+                      >
+                        All ({categoryCounts.all || 0})
+                      </button>
+
+                      {categoryCounts.COMPILER && (
+                        <button
+                          onClick={() => setSelectedErrorCategory('COMPILER')}
+                          className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-colors ${
+                            selectedErrorCategory === 'COMPILER'
+                              ? 'bg-rose-600 text-white shadow-sm'
+                              : 'bg-slate-900 hover:bg-slate-800 text-rose-300 border border-rose-500/30'
+                          }`}
+                        >
+                          Compiler ({categoryCounts.COMPILER})
+                        </button>
+                      )}
+
+                      {categoryCounts.TEST_ASSERTION && (
+                        <button
+                          onClick={() => setSelectedErrorCategory('TEST_ASSERTION')}
+                          className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-colors ${
+                            selectedErrorCategory === 'TEST_ASSERTION'
+                              ? 'bg-amber-600 text-white shadow-sm'
+                              : 'bg-slate-900 hover:bg-slate-800 text-amber-300 border border-amber-500/30'
+                          }`}
+                        >
+                          Test Assertions ({categoryCounts.TEST_ASSERTION})
+                        </button>
+                      )}
+
+                      {categoryCounts.LINTER && (
+                        <button
+                          onClick={() => setSelectedErrorCategory('LINTER')}
+                          className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-colors ${
+                            selectedErrorCategory === 'LINTER'
+                              ? 'bg-blue-600 text-white shadow-sm'
+                              : 'bg-slate-900 hover:bg-slate-800 text-blue-300 border border-blue-500/30'
+                          }`}
+                        >
+                          Linter ({categoryCounts.LINTER})
+                        </button>
+                      )}
+
+                      {categoryCounts.DEPENDENCY && (
+                        <button
+                          onClick={() => setSelectedErrorCategory('DEPENDENCY')}
+                          className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-colors ${
+                            selectedErrorCategory === 'DEPENDENCY'
+                              ? 'bg-purple-600 text-white shadow-sm'
+                              : 'bg-slate-900 hover:bg-slate-800 text-purple-300 border border-purple-500/30'
+                          }`}
+                        >
+                          Dependency ({categoryCounts.DEPENDENCY})
+                        </button>
+                      )}
+
+                      {categoryCounts.SECURITY && (
+                        <button
+                          onClick={() => setSelectedErrorCategory('SECURITY')}
+                          className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-colors ${
+                            selectedErrorCategory === 'SECURITY'
+                              ? 'bg-red-700 text-white shadow-sm'
+                              : 'bg-slate-900 hover:bg-slate-800 text-red-300 border border-red-500/30'
+                          }`}
+                        >
+                          Security ({categoryCounts.SECURITY})
+                        </button>
+                      )}
+
+                      {categoryCounts.RUNTIME_PANIC && (
+                        <button
+                          onClick={() => setSelectedErrorCategory('RUNTIME_PANIC')}
+                          className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-colors ${
+                            selectedErrorCategory === 'RUNTIME_PANIC'
+                              ? 'bg-orange-600 text-white shadow-sm'
+                              : 'bg-slate-900 hover:bg-slate-800 text-orange-300 border border-orange-500/30'
+                          }`}
+                        >
+                          Runtime Panics ({categoryCounts.RUNTIME_PANIC})
+                        </button>
+                      )}
+
+                      {categoryCounts.EXIT_CODE && (
+                        <button
+                          onClick={() => setSelectedErrorCategory('EXIT_CODE')}
+                          className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-colors ${
+                            selectedErrorCategory === 'EXIT_CODE'
+                              ? 'bg-slate-700 text-white shadow-sm'
+                              : 'bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800'
+                          }`}
+                        >
+                          Exit Code ({categoryCounts.EXIT_CODE})
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Extracted Error Items */}
+                    <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
+                      {filteredErrors.length > 0 ? (
+                        filteredErrors.map((err, idx) => {
+                          const isTargeted = selectedTargetedErrorId === err.id;
+                          const isLoadingThis = loadingAiMap[`${selectedRun.id}-${err.id}`];
+
+                          return (
+                            <div
+                              key={err.id ? `${err.id}-${idx}` : `err-idx-${idx}`}
+                              className={`p-3 rounded-lg border space-y-2 text-xs transition-all ${
+                                isTargeted
+                                  ? 'bg-slate-900 border-cyan-500/80 shadow-md shadow-cyan-500/10 ring-1 ring-cyan-500/40'
+                                  : 'bg-slate-900/90 border-slate-800/90 hover:border-slate-700'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between flex-wrap gap-2">
+                                <div className="flex items-center gap-2">
+                                  <span
+                                    className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase font-mono ${
+                                      err.category === 'COMPILER'
+                                        ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
+                                        : err.category === 'TEST_ASSERTION'
+                                        ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                                        : err.category === 'LINTER'
+                                        ? 'bg-blue-500/20 text-blue-300 border border-blue-500/40'
+                                        : err.category === 'SECURITY'
+                                        ? 'bg-red-500/20 text-red-300 border border-red-500/40'
+                                        : err.category === 'RUNTIME_PANIC'
+                                        ? 'bg-orange-500/20 text-orange-300 border border-orange-500/40'
+                                        : err.category === 'DEPENDENCY'
+                                        ? 'bg-purple-500/20 text-purple-300 border border-purple-500/40'
+                                        : 'bg-slate-800 text-slate-300 border border-slate-700'
+                                    }`}
+                                  >
+                                    [{err.category}]
+                                  </span>
+                                  <span className="text-slate-400 font-mono text-[11px]">
+                                    Step: <strong className="text-slate-200">{err.stepName}</strong>
+                                  </span>
+                                  {isTargeted && (
+                                    <span className="px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 text-[10px] font-bold flex items-center gap-1">
+                                      <Sparkles className="w-2.5 h-2.5 text-cyan-400" />
+                                      AI Target
+                                    </span>
+                                  )}
+                                </div>
+
+                                <div className="flex items-center gap-2">
+                                  {err.fileLocation && (
+                                    <span className="font-mono text-[11px] text-cyan-300 bg-slate-950 px-2 py-0.5 rounded border border-cyan-500/30 flex items-center gap-1">
+                                      <FileCode className="w-3.5 h-3.5 text-cyan-400" />
+                                      <span className="font-semibold">{err.fileLocation}</span>
+                                      {err.lineNumber ? <span className="text-cyan-400">:{err.lineNumber}{err.columnNumber ? `:${err.columnNumber}` : ''}</span> : ''}
+                                    </span>
+                                  )}
+                                  
+                                  {/* AI Targeted Analyze Button */}
+                                  <button
+                                    onClick={() => handleFetchAiBuildDiagnosis(selectedRun, err)}
+                                    disabled={loadingAiMap[selectedRun.id] || isLoadingThis}
+                                    className={`px-2.5 py-1 rounded text-[11px] font-medium flex items-center gap-1.5 transition-all shadow-sm ${
+                                      isTargeted
+                                        ? 'bg-cyan-600 hover:bg-cyan-500 text-white font-bold'
+                                        : 'bg-gradient-to-r from-cyan-900/60 to-blue-900/60 hover:from-cyan-700 hover:to-blue-700 text-cyan-200 border border-cyan-500/40'
+                                    }`}
+                                    title="Analyze this specific error using AI"
+                                  >
+                                    {isLoadingThis ? (
+                                      <>
+                                        <RefreshCw className="w-3 h-3 animate-spin text-cyan-200" />
+                                        <span>Diagnosing...</span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Sparkles className="w-3 h-3 text-cyan-300" />
+                                        <span>{isTargeted ? 'Re-Analyze with AI' : 'Analyze with AI'}</span>
+                                      </>
+                                    )}
+                                  </button>
+
+                                  <button
+                                    onClick={() => copyToClipboard(err.errorLine, `err-line-${err.id || idx}`)}
+                                    className="text-[10px] text-slate-400 hover:text-white px-2 py-1 rounded bg-slate-950 border border-slate-800 flex items-center gap-1"
+                                    title="Copy raw error line"
+                                  >
+                                    <Copy className="w-3 h-3" />
+                                    <span>{copiedCodeId === `err-line-${err.id || idx}` ? 'Copied' : 'Copy'}</span>
+                                  </button>
+                                </div>
+                              </div>
+
+                              {/* Exact Error Signature Line */}
+                              <div className="font-mono text-rose-300 font-semibold break-all bg-slate-950 p-2.5 rounded border border-rose-500/20 leading-relaxed">
+                                {err.errorLine}
+                              </div>
+
+                              {/* Multi-line stack or full message */}
+                              {err.fullMessage && err.fullMessage !== err.errorLine && (
+                                <div className="text-[11px] font-mono text-slate-400 pl-2.5 border-l-2 border-slate-700 whitespace-pre-wrap mt-1">
+                                  {err.fullMessage}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <div className="p-4 rounded-lg bg-slate-900/60 text-center text-xs text-slate-400 italic">
+                          No errors matched the current filter.
+                        </div>
+                      )}
                     </div>
                   </div>
+
+                  {/* Targeted Error Active Notice */}
+                  {selectedTargetedErrorId && (
+                    <div className="p-3 rounded-lg bg-cyan-950/40 border border-cyan-500/40 text-xs text-cyan-200 flex items-center justify-between flex-wrap gap-2">
+                      <div className="flex items-center gap-2">
+                        <Sparkles className="w-4 h-4 text-cyan-400 animate-pulse" />
+                        <span>
+                          Targeted Diagnosis active for <strong>{runAllErrors.find((e) => e.id === selectedTargetedErrorId)?.category || 'Error'}</strong>:
+                          {runAllErrors.find((e) => e.id === selectedTargetedErrorId)?.fileLocation && (
+                            <code className="ml-1.5 px-2 py-0.5 bg-slate-900 rounded text-cyan-300 font-mono border border-slate-800">
+                              {runAllErrors.find((e) => e.id === selectedTargetedErrorId)?.fileLocation}
+                              {runAllErrors.find((e) => e.id === selectedTargetedErrorId)?.lineNumber ? `:${runAllErrors.find((e) => e.id === selectedTargetedErrorId)?.lineNumber}` : ''}
+                            </code>
+                          )}
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => {
+                          setSelectedTargetedErrorId(null);
+                          handleFetchAiBuildDiagnosis(selectedRun);
+                        }}
+                        className="text-[11px] text-cyan-400 hover:text-cyan-200 underline font-medium"
+                      >
+                        Reset to Full Run Analysis
+                      </button>
+                    </div>
+                  )}
 
                   {/* 2. ROOT CAUSE (WHY IT FAILED) */}
                   <div className="space-y-1.5">
@@ -802,7 +1272,7 @@ export const PipelineMonitor: React.FC<PipelineMonitorProps> = ({
                     <div className="p-3.5 rounded-lg bg-slate-950/80 border border-slate-800 text-xs space-y-1.5 text-slate-300 leading-relaxed">
                       <p className="font-semibold text-slate-100">
                         {aiDiagnosisMap[selectedRun.id]?.rootCause ||
-                          `Step "${selectedRun.failedStepName || 'Test Matrix'}" failed due to test assertion mismatch or runtime environment exception.`}
+                          `Step "${selectedRun.failedStepName || 'Test Matrix'}" failed due to test assertion mismatch, missing dependency, or build compilation errors.`}
                       </p>
                       {aiDiagnosisMap[selectedRun.id]?.explanation && (
                         <p className="text-slate-400 text-[11px]">
@@ -814,9 +1284,9 @@ export const PipelineMonitor: React.FC<PipelineMonitorProps> = ({
 
                   {/* 3. STEP-BY-STEP SOLUTION */}
                   {(aiDiagnosisMap[selectedRun.id]?.solutionSteps || [
-                    'Inspect the test assertion values in the failing test suite.',
-                    'Update mock fixtures or handle edge cases properly in business logic.',
-                    'Run unit test suite locally before pushing code.',
+                    'Inspect the failing test assertion or compilation error line highlighted above.',
+                    'Update business logic or missing package dependencies in repository source.',
+                    'Run test suite locally before pushing new commit to remote branch.',
                   ]).length > 0 && (
                     <div className="space-y-1.5">
                       <div className="flex items-center gap-2 text-[11px] font-bold text-emerald-400 uppercase tracking-wider">
@@ -896,21 +1366,6 @@ export const PipelineMonitor: React.FC<PipelineMonitorProps> = ({
                           </div>
                         ))}
                       </div>
-                    </div>
-                  )}
-
-                  {/* Failure Logs Terminal snippet */}
-                  {selectedRun.errorLogs && selectedRun.errorLogs.length > 0 && (
-                    <div className="p-3 bg-slate-950/90 rounded-lg border border-slate-800 text-[11px] font-mono text-rose-300 space-y-1">
-                      <div className="text-slate-500 text-[10px] uppercase font-bold tracking-wider mb-1 flex items-center gap-1.5">
-                        <Terminal className="w-3 h-3 text-rose-400" /> Raw GitHub Runner Console Output:
-                      </div>
-                      {selectedRun.errorLogs.map((log, lIdx) => (
-                        <div key={lIdx} className="flex gap-2 text-rose-300">
-                          <span className="text-slate-600 select-none">&gt;</span>
-                          <span>{log}</span>
-                        </div>
-                      ))}
                     </div>
                   )}
                 </div>
@@ -1022,15 +1477,17 @@ export const PipelineMonitor: React.FC<PipelineMonitorProps> = ({
                             {stage.steps.map((step) => (
                               <div
                                 key={step.id}
-                                onClick={() =>
-                                  step.logs.length > 0 &&
+                                onClick={() => {
+                                  setSelectedStep(step);
                                   setSelectedStepLogs({
                                     stepName: step.name,
                                     logs: step.logs,
-                                  })
-                                }
+                                  });
+                                }}
                                 className={`p-2.5 rounded-lg border flex items-center justify-between text-xs cursor-pointer transition-colors ${
-                                  step.status === 'failed'
+                                  selectedStep?.id === step.id
+                                    ? 'bg-indigo-900/40 border-indigo-400 ring-1 ring-indigo-400/50 text-white font-semibold'
+                                    : step.status === 'failed'
                                     ? 'bg-rose-900/20 border-rose-500/40 text-rose-200 hover:border-rose-400'
                                     : step.status === 'running'
                                     ? 'bg-cyan-900/20 border-cyan-500/30 text-cyan-200'
@@ -1075,39 +1532,20 @@ export const PipelineMonitor: React.FC<PipelineMonitorProps> = ({
                 </div>
               </div>
 
-              {/* Step Logs Drawer */}
-              {selectedStepLogs && (
-                <div className="mt-5 p-4 rounded-xl bg-slate-950 border border-cyan-500/30 text-xs font-mono text-slate-300 space-y-2">
-                  <div className="flex items-center justify-between pb-2 border-b border-slate-800 text-cyan-400 font-bold">
-                    <span className="flex items-center gap-1.5">
-                      <Terminal className="w-4 h-4" /> Log Output: {selectedStepLogs.stepName}
-                    </span>
-                    <button
-                      onClick={() => setSelectedStepLogs(null)}
-                      className="text-slate-500 hover:text-slate-300 text-xs"
-                    >
-                      &times; Close
-                    </button>
-                  </div>
-                  <div className="space-y-1 max-h-48 overflow-y-auto text-slate-400 text-[11px]">
-                    {selectedStepLogs.logs.map((log, i) => {
-                      const isError = log.includes('ERROR') || log.includes('FAIL') || log.includes('Exit code');
-                      const isSuccess = log.includes('SUCCESS');
-                      return (
-                        <div
-                          key={i}
-                          className={`flex gap-2 ${
-                            isError ? 'text-rose-300 font-bold' : isSuccess ? 'text-emerald-300' : 'text-slate-400'
-                          }`}
-                        >
-                          <span className="text-slate-600 select-none">[{i + 1}]</span>
-                          <span>{log}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
+              {/* GitHub Actions Runner Console & Telemetry Terminal (ALWAYS VISIBLE for all runs) */}
+              <div className="mt-6">
+                <PipelineRunnerConsole
+                  selectedRun={selectedRun}
+                  selectedStep={selectedStep}
+                  onClearSelectedStep={() => {
+                    setSelectedStep(null);
+                    setSelectedStepLogs(null);
+                  }}
+                  onFetchAiDiagnosis={handleFetchAiBuildDiagnosis}
+                  onSyncLiveLogs={handleSyncLiveLogs}
+                  isSyncingLiveLogs={isSyncingLiveLogs}
+                />
+              </div>
             </div>
           ) : (
             <div className="bg-slate-900 border border-slate-800 rounded-xl p-10 shadow-md text-center space-y-4">

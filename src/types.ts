@@ -65,6 +65,19 @@ export interface PipelineStage {
   steps: PipelineStep[];
 }
 
+export interface PipelineErrorDetail {
+  id: string;
+  stageName: string;
+  stepName: string;
+  category: 'COMPILER' | 'TEST_ASSERTION' | 'LINTER' | 'DEPENDENCY' | 'SECURITY' | 'RUNTIME_PANIC' | 'EXIT_CODE' | 'CONFIG_ENV';
+  errorLine: string;
+  fullMessage?: string;
+  stackSnippet?: string[];
+  fileLocation?: string;
+  lineNumber?: number;
+  columnNumber?: number;
+}
+
 export interface WorkflowRun {
   id: string;
   workflowName: string;
@@ -78,7 +91,10 @@ export interface WorkflowRun {
   conclusion?: 'success' | 'failure' | 'cancelled';
   failureReason?: string;
   failedStepName?: string;
+  failedSteps?: string[];
   errorLogs?: string[];
+  allErrors?: PipelineErrorDetail[];
+  totalErrorCount?: number;
   durationSec: number;
   baselineDurationSec: number;
   hasDurationAnomaly: boolean;
@@ -265,6 +281,10 @@ export interface LogEntry {
   message: string;
   isAnomaly?: boolean;
   traceId?: string;
+  fileLocation?: string;
+  lineNumber?: number;
+  stackTrace?: string;
+  category?: string;
 }
 
 export interface ClusterStats {
@@ -754,7 +774,9 @@ export interface VaultSecretItem {
     daysRemaining: number;
     keySize: string;
   };
-}export interface BuildFailureAiDiagnosis {
+}
+
+export interface BuildFailureAiDiagnosis {
   errorTitle: string;
   exactError: string;
   rootCause: string;
@@ -764,6 +786,9 @@ export interface VaultSecretItem {
   fixCommands?: string[];
   preventiveAdvice: string;
   confidenceScore: number;
+  targetedErrorId?: string;
+  fileLocation?: string;
+  lineNumber?: number;
 }
 
 export type IncidentSeverity = 'CRITICAL' | 'HIGH' | 'WARNING' | 'INFO';
@@ -1273,4 +1298,84 @@ export interface NodeDetailedInfo {
   };
   scheduledPods: ScheduledPodDetail[];
   kernelLogs: NodeKernelLogEntry[];
+}
+
+export interface RepoK8sManifest {
+  id: string;
+  path: string;
+  name: string;
+  kind: string;
+  apiVersion: string;
+  namespace?: string;
+  replicas?: number;
+  containerImage?: string;
+  rawContent: string;
+  validationStatus: 'valid' | 'warning' | 'error';
+  healthScore: number; // 0 - 100
+  securityFindings: {
+    id: string;
+    level: 'pass' | 'warning' | 'error' | 'info';
+    rule: string;
+    message: string;
+    lineNumber?: number;
+    remediation?: string;
+  }[];
+  autoFixAvailable: boolean;
+  fixedContent?: string;
+}
+
+export interface K8sManifestScanReport {
+  repoFullName: string;
+  scannedAt: string;
+  totalManifests: number;
+  validCount: number;
+  warningCount: number;
+  errorCount: number;
+  readinessScore: number;
+  manifests: RepoK8sManifest[];
+  summaryMessage: string;
+}
+
+export interface GitHubWorkflowFile {
+  id: string;
+  path: string;
+  name: string;
+  triggers: string[];
+  jobsCount: number;
+  jobs: {
+    id: string;
+    name: string;
+    runsOn: string;
+    stepsCount: number;
+    hasSecurityScan?: boolean;
+    hasDockerBuild?: boolean;
+    hasK8sDeploy?: boolean;
+  }[];
+  rawContent: string;
+  healthScore: number; // 0 - 100
+  lintIssues: {
+    level: 'info' | 'warning' | 'error';
+    line?: number;
+    rule: string;
+    message: string;
+  }[];
+  isLiveGitHub?: boolean;
+}
+
+export interface AiLogSolution {
+  id: string;
+  logId?: string;
+  service: string;
+  exactError: string;
+  category: 'CRASH_LOOP' | 'OOM_KILLED' | 'TIMEOUT' | 'AUTH' | 'DATABASE' | 'NETWORK' | 'RUNTIME_PANIC' | 'GENERAL' | string;
+  rootCause: string;
+  explanation: string;
+  solutionSteps: string[];
+  codeDiff?: string;
+  fixCommands: string[];
+  preventiveAdvice?: string;
+  confidenceScore: number;
+  createdAt: string;
+  fileLocation?: string;
+  lineNumber?: number;
 }

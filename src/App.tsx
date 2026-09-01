@@ -29,6 +29,10 @@ import { FailureHistoryStudio } from './components/FailureHistoryStudio';
 import { FinOpsPanel } from './components/FinOpsPanel';
 import { GitOpsSyncStudio } from './components/GitOpsSyncStudio';
 import { Header } from './components/Header';
+import { AuthLoginModal, UserSession } from './components/AuthLoginModal';
+import { NotificationCenter, AppNotification } from './components/NotificationCenter';
+import { CommandPalette } from './components/CommandPalette';
+import { GitHubRepoSyncModal } from './components/GitHubRepoSyncModal';
 import { HelmCrdManager } from './components/HelmCrdManager';
 import { IncidentHub } from './components/IncidentHub';
 import { KedaAutoscalingPanel } from './components/KedaAutoscalingPanel';
@@ -87,6 +91,7 @@ import {
   VaultSecretItem,
   WorkflowRun,
 } from './types';
+import { safeFetchJson } from './lib/api';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabType>('incidents');
@@ -94,6 +99,8 @@ export default function App() {
   const [isHealing, setIsHealing] = useState<boolean>(false);
   const [isUpdatingCanary, setIsUpdatingCanary] = useState<boolean>(false);
   const [isSyncingGitOps, setIsSyncingGitOps] = useState<boolean>(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false);
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
     const saved = localStorage.getItem('cloudops_theme');
     return saved === 'light' ? 'light' : 'dark';
@@ -164,9 +171,284 @@ export default function App() {
   const [scaledObjects, setScaledObjects] = useState<KedaScaledObject[]>([]);
   const [vaultSecrets, setVaultSecrets] = useState<VaultSecretItem[]>([]);
   const [isRegisterClusterOpen, setIsRegisterClusterOpen] = useState(false);
+  const [isRepoSyncModalOpen, setIsRepoSyncModalOpen] = useState(false);
+  const [isSyncingRepo, setIsSyncingRepo] = useState(false);
   const [isUITemplatesOpen, setIsUITemplatesOpen] = useState(false);
   const [activeUiTemplate, setActiveUiTemplate] = useState<'linear-dark' | 'swiss-light' | 'executive-bento'>('linear-dark');
   const [activeAiModel, setActiveAiModel] = useState<string>('gemini-3.7-flash');
+  const [isDemoMode, setIsDemoMode] = useState<boolean>(false);
+  const [isNotificationOpen, setIsNotificationOpen] = useState<boolean>(false);
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState<boolean>(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
+  const [currentUser, setCurrentUser] = useState<UserSession | null>(() => {
+    try {
+      const saved = localStorage.getItem('sentrix_current_user');
+      if (saved) {
+        return JSON.parse(saved);
+      }
+    } catch {}
+    return {
+      email: 'rahulyadav.RY16@gmail.com',
+      name: 'Rahul Yadav',
+      role: 'Cluster Admin',
+      avatarUrl: 'https://api.dicebear.com/7.x/bottts/svg?seed=rahulyadav',
+      organization: 'Enterprise Production Fleet',
+      lastLogin: new Date().toISOString(),
+      token: `sre_sec_rahul_${Date.now()}`,
+    };
+  });
+
+  // Verify and sync user session with Express backend on boot
+  useEffect(() => {
+    const syncSessionWithServer = async () => {
+      try {
+        const token = currentUser?.token;
+        const res = await fetch('/api/auth/session', {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        const data = await res.json();
+        if (data.authenticated && data.user) {
+          setCurrentUser(data.user);
+          localStorage.setItem('sentrix_current_user', JSON.stringify(data.user));
+        }
+      } catch (err) {
+        console.warn('Express session sync error:', err);
+      }
+    };
+    syncSessionWithServer();
+  }, []);
+  const [readNotificationIds, setReadNotificationIds] = useState<Set<string>>(() => {
+    try {
+      const saved = localStorage.getItem('sentrix_read_notifs');
+      return saved ? new Set(JSON.parse(saved)) : new Set();
+    } catch {
+      return new Set();
+    }
+  });
+  const [dismissedNotificationIds, setDismissedNotificationIds] = useState<Set<string>>(new Set());
+
+  // Global Keyboard listener for Command Palette (Cmd+K / Ctrl+K)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setIsCommandPaletteOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  // Compute live notifications from operational telemetry
+  const notifications: AppNotification[] = React.useMemo(() => {
+    const list: AppNotification[] = [];
+
+    // 1. Diagnostic Issues
+    issues.forEach((issue) => {
+      const id = `issue-${issue.id}`;
+      list.push({
+        id,
+        category: 'incident',
+        severity: issue.severity === 'critical' ? 'critical' : 'warning',
+        title: `${issue.type} on ${issue.serviceName}`,
+        description: issue.message || `Diagnostic anomaly detected on pod ${issue.podName}. Automated root cause analysis ready.`,
+        timestamp: 'Active Alert',
+        service: issue.serviceName,
+        actionLabel: 'Remediate in Hub',
+        targetTab: 'incidents',
+        read: readNotificationIds.has(id),
+      });
+    });
+
+    // 2. Predictive OOM Alerts
+    predictiveAlerts.forEach((alert) => {
+      const id = `oom-${alert.id}`;
+      list.push({
+        id,
+        category: 'predictive',
+        severity: alert.predictedMinutesToOOM < 15 ? 'critical' : 'warning',
+        title: `Predictive OOM: ${alert.serviceName} (${alert.podName})`,
+        description: `Memory saturation projected in ~${alert.predictedMinutesToOOM} min (slope: +${alert.growthRateMbPerMin} MB/min).`,
+        timestamp: 'Radar Warning',
+        service: alert.serviceName,
+        actionLabel: 'Inspect Leak Radar',
+        targetTab: 'predictive',
+        read: readNotificationIds.has(id),
+      });
+    });
+
+    // 3. Workflow Runs
+    workflowRuns.slice(0, 3).forEach((run) => {
+      if (run.status === 'failed') {
+        const id = `workflow-${run.id}`;
+        list.push({
+          id,
+          category: 'cicd',
+          severity: 'critical',
+          title: `Build #${run.id.replace('run-', '')} Failed (${run.targetService || 'service'})`,
+          description: run.commitMessage || `Pipeline failed during execution on branch ${run.branch}.`,
+          timestamp: new Date(run.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          service: run.targetService,
+          actionLabel: 'Inspect Logs',
+          targetTab: 'pipeline',
+          read: readNotificationIds.has(id),
+        });
+      }
+    });
+
+    // 4. Security Vulnerabilities
+    if (securityReport?.vulnerabilities && securityReport.vulnerabilities.length > 0) {
+      const critVulns = securityReport.vulnerabilities.filter((v) => v.severity === 'CRITICAL');
+      if (critVulns.length > 0) {
+        const id = 'sec-crit-report';
+        list.push({
+          id,
+          category: 'security',
+          severity: 'critical',
+          title: `${critVulns.length} Critical CVEs in Container Images`,
+          description: `Vulnerabilities identified in ${securityReport.targetNamespace} cluster namespace. Patching recommendations generated.`,
+          timestamp: 'Audit Scan',
+          actionLabel: 'Security Audit',
+          targetTab: 'security',
+          read: readNotificationIds.has(id),
+        });
+      }
+    }
+
+    // 5. Recent Autonomous Healing Receipts
+    healingHistory.slice(0, 3).forEach((h) => {
+      const id = `heal-${h.id}`;
+      list.push({
+        id,
+        category: 'heal',
+        severity: 'success',
+        title: `Auto-Remediated: ${h.serviceName}`,
+        description: `Executed ${h.actionType} in ${h.timeToMitigateMs}ms. Pod health verified nominal.`,
+        timestamp: new Date(h.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        service: h.serviceName,
+        actionLabel: 'View RCA Log',
+        targetTab: 'rca',
+        read: readNotificationIds.has(id),
+      });
+    });
+
+    return list.filter((n) => !dismissedNotificationIds.has(n.id));
+  }, [issues, predictiveAlerts, workflowRuns, securityReport, healingHistory, readNotificationIds, dismissedNotificationIds]);
+
+  const unreadNotificationCount = React.useMemo(() => {
+    return notifications.filter((n) => !n.read).length;
+  }, [notifications]);
+
+  const handleMarkNotifRead = (id: string) => {
+    setReadNotificationIds((prev) => {
+      const next = new Set(prev);
+      next.add(id);
+      try {
+        localStorage.setItem('sentrix_read_notifs', JSON.stringify(Array.from(next)));
+      } catch {}
+      return next;
+    });
+  };
+
+  const handleMarkAllNotifsRead = () => {
+    const allIds = notifications.map((n) => n.id);
+    setReadNotificationIds(new Set(allIds));
+    try {
+      localStorage.setItem('sentrix_read_notifs', JSON.stringify(allIds));
+    } catch {}
+    showToast('info', 'Notifications Marked Read', 'All notifications and alerts marked as read.');
+  };
+
+  const handleClearAllNotifs = () => {
+    const allIds = notifications.map((n) => n.id);
+    setDismissedNotificationIds((prev) => new Set([...prev, ...allIds]));
+    showToast('info', 'Notifications Cleared', 'Notification drawer queue cleared.');
+  };
+
+  const handleLoginUser = (session: UserSession) => {
+    setCurrentUser(session);
+    try {
+      localStorage.setItem('sentrix_current_user', JSON.stringify(session));
+    } catch {}
+    showToast('success', 'Authenticated Successfully', `Welcome, ${session.name}! SRE Role: ${session.role}.`);
+  };
+
+  const handleLogoutUser = () => {
+    setCurrentUser(null);
+    try {
+      localStorage.removeItem('sentrix_current_user');
+    } catch {}
+    showToast('info', 'Operator Signed Out', 'You have been disconnected from the SRE console.');
+  };
+
+  const handleClearDemoData = async () => {
+    try {
+      const res = await fetch('/api/data/clear-demo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const data = await res.json();
+      if (data.success) {
+        setIsDemoMode(false);
+        setRepo(null);
+        setCommits([]);
+        setWorkflowRuns([]);
+        setNodes([]);
+        setPods([]);
+        setNamespaces([]);
+        setPredictiveAlerts([]);
+        setIssues([]);
+        setHealingHistory([]);
+        setCanary(null);
+        setFinops(null);
+        setLogs([]);
+        setMeshGraph(null);
+        setLanguageProfiles([]);
+        setGitOpsApps([]);
+        setChaosExperiments([]);
+        setClusterFleet([]);
+        setSecurityReport(null);
+        setAlertChannels([]);
+        setEbpfEvents([]);
+        setEbpfStats([]);
+        setRunbooks([]);
+        setDrRegions([]);
+        setTraces([]);
+        setFlamegraph(null);
+        setHelmReleases([]);
+        setCrds([]);
+        setScaledObjects([]);
+        setVaultSecrets([]);
+        setClusterOverview({
+          stats: data.stats || {
+            healthScore: 100,
+            totalNodes: 0,
+            readyNodes: 0,
+            totalPods: 0,
+            runningPods: 0,
+            unhealthyPods: 0,
+            cpuUtilizationPercent: 0,
+            memoryUtilizationPercent: 0,
+            networkThroughputMBps: 0,
+            activeIncidentsCount: 0,
+            autoHealedCount24h: 0,
+            predictiveAlertsCount: 0,
+          },
+          nodes: [],
+          namespaces: [],
+          activeRepo: null as any,
+        });
+        showToast(
+          'success',
+          'Demo Data Removed',
+          'All mock and demo data has been purged. The platform is now running in clean live mode.'
+        );
+      }
+    } catch (err: any) {
+      console.error('Failed to clear demo data:', err);
+      showToast('error', 'Error', err.message || 'Failed to clear demo data.');
+    }
+  };
 
   const handleApplyUiTemplate = (templateId: 'linear-dark' | 'swiss-light' | 'executive-bento') => {
     setActiveUiTemplate(templateId);
@@ -182,180 +464,112 @@ export default function App() {
     }
   };
 
-  // Fetch all cluster & pipeline data
+  // Fetch all cluster & pipeline data safely
   const fetchData = async () => {
     try {
       const [
-        overviewRes,
-        githubRes,
-        topologyRes,
-        predictiveRes,
-        issuesRes,
-        canaryRes,
-        finopsRes,
-        logsRes,
-        meshRes,
-        profilesRes,
-        gitopsRes,
-        chaosRes,
-        policiesRes,
-        sloRes,
-        fleetRes,
-        securityRes,
-        alertsRes,
-        ebpfRes,
-        runbooksRes,
-        drRes,
-        tracesRes,
-        flamegraphRes,
-        helmRes,
-        crdsRes,
-        scaledRes,
-        vaultRes,
-        aiModelsRes,
+        overviewData,
+        ghData,
+        topData,
+        predData,
+        issData,
+        canaryData,
+        finopsData,
+        logData,
+        meshData,
+        profData,
+        gitData,
+        chData,
+        polData,
+        sloData,
+        flData,
+        secData,
+        alData,
+        ebpfData,
+        rbData,
+        drData,
+        trData,
+        flameData,
+        helmData,
+        crdsData,
+        scData,
+        vData,
+        aiData,
       ] = await Promise.all([
-        fetch('/api/cluster/overview'),
-        fetch('/api/github/activity'),
-        fetch('/api/k8s/topology'),
-        fetch('/api/k8s/predictive-alerts'),
-        fetch('/api/k8s/issues'),
-        fetch('/api/canary/status'),
-        fetch('/api/finops/breakdown'),
-        fetch('/api/logs'),
-        fetch('/api/mesh/topology'),
-        fetch('/api/runtime/profiles'),
-        fetch('/api/gitops/apps'),
-        fetch('/api/chaos/experiments'),
-        fetch('/api/policies/list'),
-        fetch('/api/slo/targets'),
-        fetch('/api/fleet/clusters'),
-        fetch('/api/security/audit'),
-        fetch('/api/alerts/channels'),
-        fetch('/api/ebpf/kernel-events'),
-        fetch('/api/runbooks'),
-        fetch('/api/disaster-recovery/regions'),
-        fetch('/api/tracing/traces'),
-        fetch('/api/tracing/flamegraph'),
-        fetch('/api/helm/releases'),
-        fetch('/api/k8s/crds'),
-        fetch('/api/autoscaling/scaled-objects'),
-        fetch('/api/secrets/vault-items'),
-        fetch('/api/ai/models'),
+        safeFetchJson('/api/cluster/overview'),
+        safeFetchJson('/api/github/activity'),
+        safeFetchJson('/api/k8s/topology'),
+        safeFetchJson('/api/k8s/predictive-alerts'),
+        safeFetchJson('/api/k8s/issues'),
+        safeFetchJson('/api/canary/status'),
+        safeFetchJson('/api/finops/breakdown'),
+        safeFetchJson('/api/logs'),
+        safeFetchJson('/api/mesh/topology'),
+        safeFetchJson('/api/runtime/profiles'),
+        safeFetchJson('/api/gitops/apps'),
+        safeFetchJson('/api/chaos/experiments'),
+        safeFetchJson('/api/policies/list'),
+        safeFetchJson('/api/slo/targets'),
+        safeFetchJson('/api/fleet/clusters'),
+        safeFetchJson('/api/security/audit'),
+        safeFetchJson('/api/alerts/channels'),
+        safeFetchJson('/api/ebpf/kernel-events'),
+        safeFetchJson('/api/runbooks'),
+        safeFetchJson('/api/disaster-recovery/regions'),
+        safeFetchJson('/api/tracing/traces'),
+        safeFetchJson('/api/tracing/flamegraph'),
+        safeFetchJson('/api/helm/releases'),
+        safeFetchJson('/api/k8s/crds'),
+        safeFetchJson('/api/autoscaling/scaled-objects'),
+        safeFetchJson('/api/secrets/vault-items'),
+        safeFetchJson('/api/ai/models'),
       ]);
 
-      if (overviewRes.ok) setClusterOverview(await overviewRes.json());
-      if (githubRes.ok) {
-        const ghData = await githubRes.json();
-        setRepo(ghData.repo);
-        setCommits(ghData.commits || ghData.recentCommits || []);
-        setWorkflowRuns(ghData.workflowRuns || []);
+      if (overviewData) setClusterOverview(overviewData);
+      if (ghData) {
+        if (ghData.repo) setRepo(ghData.repo);
+        if (ghData.commits || ghData.recentCommits) setCommits(ghData.commits || ghData.recentCommits || []);
+        if (ghData.workflowRuns) setWorkflowRuns(ghData.workflowRuns || []);
       }
-      if (topologyRes.ok) {
-        const topData = await topologyRes.json();
-        setNodes(topData.nodes || []);
-        setPods(topData.pods || []);
-        setNamespaces(topData.namespaces || []);
+      if (topData) {
+        if (topData.nodes) setNodes(topData.nodes);
+        if (topData.pods) setPods(topData.pods);
+        if (topData.namespaces) setNamespaces(topData.namespaces);
       }
-      if (predictiveRes.ok) {
-        const predData = await predictiveRes.json();
-        setPredictiveAlerts(predData.alerts || []);
-      }
-      if (issuesRes.ok) {
-        const issData = await issuesRes.json();
-        setIssues(issData.issues || []);
-        setHealingHistory(issData.autoHealingHistory || issData.healingHistory || []);
-      }
-      if (canaryRes.ok) {
-        const canaryData = await canaryRes.json();
-        setCanary(canaryData.canary || canaryData);
-      }
-      if (finopsRes.ok) setFinops(await finopsRes.json());
-      if (logsRes.ok) {
-        const logData = await logsRes.json();
-        setLogs(logData.logs || []);
-      }
-      if (meshRes.ok) {
-        const meshData = await meshRes.json();
-        setMeshGraph(meshData.graph || null);
-      }
-      if (profilesRes.ok) {
-        const profData = await profilesRes.json();
-        setLanguageProfiles(profData.profiles || []);
-      }
-      if (gitopsRes.ok) {
-        const gitData = await gitopsRes.json();
-        setGitOpsApps(gitData.apps || []);
-      }
-      if (chaosRes.ok) {
-        const chData = await chaosRes.json();
-        setChaosExperiments(chData.experiments || []);
-      }
-      if (policiesRes.ok) {
-        const polData = await policiesRes.json();
-        setPolicies(polData.policies || []);
-      }
-      if (sloRes.ok) {
-        const sloData = await sloRes.json();
-        setSloTargets(sloData.slos || []);
-      }
-      if (fleetRes.ok) {
-        const flData = await fleetRes.json();
-        setClusterFleet(flData.fleet || []);
-      }
-      if (securityRes.ok) {
-        const secData = await securityRes.json();
-        setSecurityReport(secData.report || null);
-      }
-      if (alertsRes.ok) {
-        const alData = await alertsRes.json();
-        setAlertChannels(alData.channels || []);
-      }
-      if (ebpfRes.ok) {
-        const ebpfData = await ebpfRes.json();
-        setEbpfEvents(ebpfData.events || []);
-        setEbpfStats(ebpfData.stats || []);
-      }
-      if (runbooksRes.ok) {
-        const rbData = await runbooksRes.json();
-        setRunbooks(rbData.runbooks || []);
-      }
-      if (drRes.ok) {
-        const drData = await drRes.json();
-        setDrRegions(drData.regions || []);
-      }
-      if (tracesRes.ok) {
-        const trData = await tracesRes.json();
-        setTraces(trData.traces || []);
-      }
-      if (flamegraphRes.ok) {
-        const flData = await flamegraphRes.json();
-        setFlamegraph(flData.flamegraph || null);
-      }
-      if (helmRes.ok) {
-        const helmData = await helmRes.json();
-        setHelmReleases(helmData.releases || []);
-      }
-      if (crdsRes.ok) {
-        const crdsData = await crdsRes.json();
-        setCrds(crdsData.crds || []);
-      }
-      if (scaledRes.ok) {
-        const scData = await scaledRes.json();
-        setScaledObjects(scData.scaledObjects || []);
-      }
-      if (vaultRes.ok) {
-        const vData = await vaultRes.json();
-        setVaultSecrets(vData.secrets || []);
-      }
-      if (aiModelsRes && aiModelsRes.ok) {
-        const aiData = await aiModelsRes.json();
-        if (aiData.activeModel) {
-          setActiveAiModel(aiData.activeModel);
+      if (predData && predData.alerts) setPredictiveAlerts(predData.alerts);
+      if (issData) {
+        if (issData.issues) setIssues(issData.issues);
+        if (issData.autoHealingHistory || issData.healingHistory) {
+          setHealingHistory(issData.autoHealingHistory || issData.healingHistory || []);
         }
       }
-
+      if (canaryData) setCanary(canaryData.canary || canaryData);
+      if (finopsData) setFinops(finopsData);
+      if (logData && logData.logs) setLogs(logData.logs);
+      if (meshData && meshData.graph) setMeshGraph(meshData.graph);
+      if (profData && profData.profiles) setLanguageProfiles(profData.profiles);
+      if (gitData && gitData.apps) setGitOpsApps(gitData.apps);
+      if (chData && chData.experiments) setChaosExperiments(chData.experiments);
+      if (polData && polData.policies) setPolicies(polData.policies);
+      if (sloData && sloData.slos) setSloTargets(sloData.slos);
+      if (flData && flData.fleet) setClusterFleet(flData.fleet);
+      if (secData && secData.report) setSecurityReport(secData.report);
+      if (alData && alData.channels) setAlertChannels(alData.channels);
+      if (ebpfData) {
+        if (ebpfData.events) setEbpfEvents(ebpfData.events);
+        if (ebpfData.stats) setEbpfStats(ebpfData.stats);
+      }
+      if (rbData && rbData.runbooks) setRunbooks(rbData.runbooks);
+      if (drData && drData.regions) setDrRegions(drData.regions);
+      if (trData && trData.traces) setTraces(trData.traces);
+      if (flameData && flameData.flamegraph) setFlamegraph(flameData.flamegraph);
+      if (helmData && helmData.releases) setHelmReleases(helmData.releases);
+      if (crdsData && crdsData.crds) setCrds(crdsData.crds);
+      if (scData && scData.scaledObjects) setScaledObjects(scData.scaledObjects);
+      if (vData && vData.secrets) setVaultSecrets(vData.secrets);
+      if (aiData && aiData.activeModel) setActiveAiModel(aiData.activeModel);
     } catch (err) {
-      console.error('Error fetching cluster telemetry:', err);
+      console.warn('Telemetry polling notice:', err);
     } finally {
       setLoading(false);
     }
@@ -427,6 +641,7 @@ export default function App() {
 
   // Connect Custom GitHub Repository
   const handleConnectRepo = async (repoUrl: string, token?: string): Promise<boolean> => {
+    setIsSyncingRepo(true);
     try {
       const res = await fetch('/api/github/connect-repo', {
         method: 'POST',
@@ -441,7 +656,7 @@ export default function App() {
         showToast(
           'success',
           'GitHub Repo Synced',
-          `Connected to ${data.repo?.owner}/${data.repo?.name} via GitHub REST API.`
+          `Connected to ${data.repo?.owner || 'repository'}/${data.repo?.name || 'main'} via GitHub REST API.`
         );
         return true;
       } else {
@@ -452,11 +667,14 @@ export default function App() {
       console.error('Error connecting custom repo:', err);
       showToast('error', 'Network Error', err.message || 'Could not reach server.');
       return false;
+    } finally {
+      setIsSyncingRepo(false);
     }
   };
 
   // Live Sync with GitHub (Refresh Telemetry & Runs)
   const handleSyncRepo = async (): Promise<boolean> => {
+    setIsSyncingRepo(true);
     try {
       const res = await fetch('/api/github/sync', {
         method: 'POST',
@@ -482,6 +700,8 @@ export default function App() {
       console.error('Error syncing GitHub repo:', err);
       showToast('error', 'Sync Failed', err.message || 'Could not reach server.');
       return false;
+    } finally {
+      setIsSyncingRepo(false);
     }
   };
 
@@ -861,7 +1081,7 @@ export default function App() {
       {/* Dynamic Animated Ambient Background */}
       <AnimatedBackground theme={theme} />
 
-      {/* SentriX Desktop Navigation Sidebar matching reference screenshot */}
+      {/* SentriX Desktop Navigation Sidebar */}
       <div className="hidden lg:block shrink-0">
         <SentrixSidebar
           activeTab={activeTab}
@@ -871,8 +1091,27 @@ export default function App() {
           activeWorkflowsCount={activeWorkflowsCount}
           onOpenCopilot={() => setActiveTab('copilot')}
           onOpenSettings={() => setIsRegisterClusterOpen(true)}
+          isCollapsed={isSidebarCollapsed}
+          onToggleCollapse={() => setIsSidebarCollapsed((prev) => !prev)}
+          theme={theme}
         />
       </div>
+
+      {/* SentriX Mobile Navigation Drawer */}
+      {isMobileSidebarOpen && (
+        <SentrixSidebar
+          activeTab={activeTab}
+          onChangeTab={setActiveTab}
+          issueCount={activeIssueCount}
+          predictiveAlertCount={activePredictiveAlertCount}
+          activeWorkflowsCount={activeWorkflowsCount}
+          onOpenCopilot={() => setActiveTab('copilot')}
+          onOpenSettings={() => setIsRegisterClusterOpen(true)}
+          isMobileOpen={isMobileSidebarOpen}
+          onCloseMobile={() => setIsMobileSidebarOpen(false)}
+          theme={theme}
+        />
+      )}
 
       {/* Main Layout Area */}
       <div className={`flex-1 flex flex-col min-w-0 ${theme === 'light' ? 'bg-[#f8fafc]' : 'bg-[#090b10]'} transition-colors`}>
@@ -890,6 +1129,8 @@ export default function App() {
             theme={theme}
             onToggleTheme={toggleTheme}
             onOpenRegisterCluster={() => setIsRegisterClusterOpen(true)}
+            onOpenRepoSyncModal={() => setIsRepoSyncModalOpen(true)}
+            onConnectRepo={handleConnectRepo}
             primaryClusterName={clusterFleet.find((c) => c.isPrimary)?.clusterName || 'gke-prod-us-west1'}
             activeAiModelName={
               activeAiModel.includes('nvidia')
@@ -903,10 +1144,26 @@ export default function App() {
             onOpenModelSwitchTab={() => setActiveTab('model-switch')}
             onOpenUITemplates={() => setIsUITemplatesOpen(true)}
             onOpenAiAssistant={() => setActiveTab('copilot')}
+            isDemoMode={isDemoMode}
+            onClearDemoData={handleClearDemoData}
+            onToggleSidebar={() => {
+              if (window.innerWidth < 1024) {
+                setIsMobileSidebarOpen((prev) => !prev);
+              } else {
+                setIsSidebarCollapsed((prev) => !prev);
+              }
+            }}
+            isSidebarCollapsed={isSidebarCollapsed}
+            unreadNotificationCount={unreadNotificationCount}
+            onToggleNotifications={() => setIsNotificationOpen((prev) => !prev)}
+            onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
+            activeIssueCount={activeIssueCount}
+            currentUser={currentUser}
+            onOpenAuthModal={() => setIsAuthModalOpen(true)}
           />
         </div>
 
-        {/* Responsive Navigation Tab Bar (Top Sub-Tabs) */}
+        {/* Clean Breadcrumb Context & Sibling Switcher Bar */}
         <div className="relative z-30">
           <NavigationTabs
             activeTab={activeTab}
@@ -914,6 +1171,7 @@ export default function App() {
             issueCount={activeIssueCount}
             predictiveAlertCount={activePredictiveAlertCount}
             activeWorkflowsCount={activeWorkflowsCount}
+            theme={theme}
           />
         </div>
 
@@ -938,6 +1196,7 @@ export default function App() {
             onDisconnectRepo={handleDisconnectRepo}
             onNavigateToFailures={() => setActiveTab('failure-history')}
             onNavigateToTechStack={() => setActiveTab('tech-stack')}
+            onNavigateToGoIngestion={() => setActiveTab('log-collector')}
           />
         )}
 
@@ -1160,7 +1419,7 @@ export default function App() {
         )}
 
         {activeTab === 'logs' && (
-          <LogViewer logs={logs} onRefreshLogs={fetchData} />
+          <LogViewer logs={logs} onRefreshLogs={fetchData} onShowToast={showToast} />
         )}
 
         {activeTab === 'postmortem' && <PostMortemViewer />}
@@ -1169,6 +1428,64 @@ export default function App() {
 
         {activeTab === 'production-readiness' && <ProductionReadinessHub />}
       </main>
+
+      {/* Interactive Notification Center Drawer */}
+      <NotificationCenter
+        isOpen={isNotificationOpen}
+        onClose={() => setIsNotificationOpen(false)}
+        issues={issues}
+        predictiveAlerts={predictiveAlerts}
+        workflowRuns={workflowRuns}
+        healingHistory={healingHistory}
+        onNavigateToTab={(tab) => setActiveTab(tab)}
+        theme={theme}
+        notifications={notifications}
+        onMarkAsRead={handleMarkNotifRead}
+        onMarkAllAsRead={handleMarkAllNotifsRead}
+        onClearAll={handleClearAllNotifs}
+        onSimulateIncident={handleSimulateIncident}
+      />
+
+      {/* Global Command Palette (Cmd+K / Ctrl+K) */}
+      <CommandPalette
+        isOpen={isCommandPaletteOpen}
+        onClose={() => setIsCommandPaletteOpen(false)}
+        onNavigateToTab={(tab) => setActiveTab(tab)}
+        onSimulateIncident={handleSimulateIncident}
+        onTriggerPipeline={() => handleTriggerRun('main', 'payment-gateway')}
+        onToggleTheme={toggleTheme}
+        onOpenRepoSync={() => setIsRepoSyncModalOpen(true)}
+        onOpenClusterModal={() => setIsRegisterClusterOpen(true)}
+        onRefresh={fetchData}
+        onClearDemoData={handleClearDemoData}
+        theme={theme}
+      />
+
+      {/* SRE Operator Authentication & Profile Modal */}
+      <AuthLoginModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        currentUser={currentUser}
+        onLogin={handleLoginUser}
+        onLogout={handleLogoutUser}
+        theme={theme}
+      />
+
+      {/* Global GitHub Repository One-Click Sync Modal */}
+      <GitHubRepoSyncModal
+        isOpen={isRepoSyncModalOpen}
+        onClose={() => setIsRepoSyncModalOpen(false)}
+        currentRepo={repo}
+        onConnectRepo={async (repoUrl: string, token?: string) => {
+          const ok = await handleConnectRepo(repoUrl, token);
+          if (ok) await fetchData();
+        }}
+        onSyncAllServices={async () => {
+          const ok = await handleSyncRepo();
+          if (ok) await fetchData();
+        }}
+        isLoading={isSyncingRepo}
+      />
 
       {/* Register Cluster Modal */}
       <RegisterClusterModal

@@ -37,6 +37,7 @@ interface ExecutiveOverviewProps {
   clusterFleet: ClusterFleetNode[];
   repo: GitHubRepo | null;
   issues: DiagnosticIssue[];
+  currentUser?: { name: string; email: string; avatarUrl: string; role: string } | null;
   onOpenRegisterCluster: () => void;
   onSimulateIncident: (type: string) => void;
   onNavigateTab: (tab: string) => void;
@@ -48,6 +49,7 @@ export const ExecutiveOverview: React.FC<ExecutiveOverviewProps> = ({
   clusterFleet,
   repo,
   issues,
+  currentUser,
   onOpenRegisterCluster,
   onSimulateIncident,
   onNavigateTab,
@@ -345,14 +347,30 @@ export const ExecutiveOverview: React.FC<ExecutiveOverviewProps> = ({
                 )}
               </button>
 
-              {/* User Avatar */}
-              <div className="w-9 h-9 rounded-full ring-2 ring-white/15 overflow-hidden cursor-pointer">
-                <img
-                  src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80"
-                  alt="User Profile"
-                  className="w-full h-full object-cover"
-                  referrerPolicy="no-referrer"
-                />
+              {/* User Avatar & Profile */}
+              <div
+                className="flex items-center gap-2.5 px-2 py-1 rounded-full bg-[#141416] border border-white/10"
+                title={currentUser ? `${currentUser.name} (${currentUser.role})` : 'Rahul Yadav (Cluster Admin)'}
+              >
+                <div className="w-8 h-8 rounded-full ring-2 ring-emerald-500/40 overflow-hidden bg-slate-800 flex items-center justify-center">
+                  <img
+                    src={
+                      currentUser?.avatarUrl ||
+                      'https://api.dicebear.com/7.x/bottts/svg?seed=rahulyadav'
+                    }
+                    alt={currentUser?.name || 'Rahul Yadav'}
+                    className="w-full h-full object-cover"
+                    referrerPolicy="no-referrer"
+                  />
+                </div>
+                <div className="hidden sm:block text-left pr-2">
+                  <div className="text-[11px] font-bold text-white leading-tight">
+                    {currentUser?.name || 'Rahul Yadav'}
+                  </div>
+                  <div className="text-[9px] font-mono text-emerald-400 leading-tight">
+                    {currentUser?.role || 'Cluster Admin'}
+                  </div>
+                </div>
               </div>
             </div>
           </div>

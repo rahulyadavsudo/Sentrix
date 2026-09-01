@@ -27,6 +27,7 @@ import {
   ProductionSystemHealth,
   UserRole,
 } from '../types';
+import { safeFetchJson } from '../lib/api';
 
 interface AiModelOption {
   id: string;
@@ -62,21 +63,21 @@ export const ProductionReadinessHub: React.FC = () => {
     try {
       setLoading(true);
       const [usersRes, auditRes, dbRes, healthRes, aiModelsRes] = await Promise.all([
-        fetch('/api/enterprise/users').then((r) => r.json()).catch(() => ({})),
-        fetch('/api/enterprise/audit-logs').then((r) => r.json()).catch(() => ({})),
-        fetch('/api/enterprise/database-status').then((r) => r.json()).catch(() => ({})),
-        fetch('/api/enterprise/system-health').then((r) => r.json()).catch(() => ({})),
-        fetch('/api/ai/models').then((r) => r.json()).catch(() => ({})),
+        safeFetchJson<any>('/api/enterprise/users', undefined, null),
+        safeFetchJson<any>('/api/enterprise/audit-logs', undefined, null),
+        safeFetchJson<any>('/api/enterprise/database-status', undefined, null),
+        safeFetchJson<any>('/api/enterprise/system-health', undefined, null),
+        safeFetchJson<any>('/api/ai/models', undefined, null),
       ]);
 
-      if (usersRes.success) setUsers(usersRes.users);
-      if (auditRes.success) setAuditLogs(auditRes.auditLogs);
-      if (dbRes.success) setDbStatus(dbRes.database);
-      if (healthRes.success) setSystemHealth(healthRes.health);
-      if (aiModelsRes.models) setAiModels(aiModelsRes.models);
-      if (aiModelsRes.activeModel) setActiveAiModel(aiModelsRes.activeModel);
+      if (usersRes?.success && usersRes.users) setUsers(usersRes.users);
+      if (auditRes?.success && auditRes.auditLogs) setAuditLogs(auditRes.auditLogs);
+      if (dbRes?.success && dbRes.database) setDbStatus(dbRes.database);
+      if (healthRes?.success && healthRes.health) setSystemHealth(healthRes.health);
+      if (aiModelsRes?.models) setAiModels(aiModelsRes.models);
+      if (aiModelsRes?.activeModel) setActiveAiModel(aiModelsRes.activeModel);
     } catch (err) {
-      console.error('Error loading enterprise data:', err);
+      console.warn('Notice loading enterprise data:', err);
     } finally {
       setLoading(false);
     }

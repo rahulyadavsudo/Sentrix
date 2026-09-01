@@ -18,6 +18,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { SreChatMessage } from '../types';
+import { safeFetchJson } from '../lib/api';
 
 interface SreCopilotChatProps {
   onExecuteAction?: (actionType: string, payload?: any) => void;
@@ -52,24 +53,22 @@ export const SreCopilotChat: React.FC<SreCopilotChatProps> = ({ onExecuteAction 
 
   const fetchHistoryAndModels = async () => {
     try {
-      const [historyRes, modelsRes] = await Promise.all([
-        fetch('/api/ai/sre-chat/history'),
-        fetch('/api/ai/models'),
+      const [historyData, modelsData] = await Promise.all([
+        safeFetchJson('/api/ai/sre-chat/history'),
+        safeFetchJson('/api/ai/models'),
       ]);
 
-      if (historyRes.ok) {
-        const data = await historyRes.json();
-        setMessages(data.messages || []);
-        if (data.activeModel) setActiveModel(data.activeModel);
+      if (historyData) {
+        if (historyData.messages) setMessages(historyData.messages);
+        if (historyData.activeModel) setActiveModel(historyData.activeModel);
       }
 
-      if (modelsRes.ok) {
-        const mData = await modelsRes.json();
-        if (mData.models) setModels(mData.models);
-        if (mData.activeModel) setActiveModel(mData.activeModel);
+      if (modelsData) {
+        if (modelsData.models) setModels(modelsData.models);
+        if (modelsData.activeModel) setActiveModel(modelsData.activeModel);
       }
     } catch (err) {
-      console.error('Failed to fetch chat history or models:', err);
+      console.warn('Chat history notice:', err);
     }
   };
 
